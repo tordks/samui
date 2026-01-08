@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAM3 WebUI Mockup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0e1117;
+            color: #fafafa;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 240px;
+            height: 100vh;
+            background: #262730;
+            padding: 20px 0;
+            border-right: 1px solid #3d3d4d;
+        }
+
+        .logo {
+            padding: 0 20px 20px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #ff4b4b;
+            border-bottom: 1px solid #3d3d4d;
+            margin-bottom: 20px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #3d3d4d;
+        }
+
+        .nav-item.active {
+            background: #3d3d4d;
+            border-left-color: #ff4b4b;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            opacity: 0.7;
+        }
+
+        /* Main content */
+        .main {
+            margin-left: 240px;
+            padding: 30px 40px;
+            min-height: 100vh;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        /* Upload page */
+        .upload-zone {
+            border: 2px dashed #3d3d4d;
+            border-radius: 12px;
+            padding: 60px;
+            text-align: center;
+            background: #1a1a24;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 30px;
+        }
+
+        .upload-zone:hover {
+            border-color: #ff4b4b;
+            background: #1f1f2a;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .upload-hint {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 20px;
+            background: #ff4b4b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 16px;
+        }
+
+        .btn:hover {
+            background: #ff3333;
+        }
+
+        .btn-secondary {
+            background: #3d3d4d;
+        }
+
+        .btn-secondary:hover {
+            background: #4d4d5d;
+        }
+
+        /* Image gallery */
+        .gallery-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .image-count {
+            color: #888;
+            font-weight: normal;
+            font-size: 14px;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+        }
+
+        .gallery-item {
+            aspect-ratio: 1;
+            background: #1a1a24;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .gallery-item:hover {
+            border-color: #ff4b4b;
+        }
+
+        .gallery-item.selected {
+            border-color: #ff4b4b;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .gallery-item-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            font-size: 12px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending { background: #3d3d4d; }
+        .status-annotated { background: #1e40af; }
+        .status-processing { background: #b45309; }
+        .status-processed { background: #166534; }
+
+        /* Annotation page */
+        .annotation-layout {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 24px;
+            height: calc(100vh - 180px);
+        }
+
+        .annotation-main {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            background: #1a1a24;
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        .canvas-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .bbox {
+            position: absolute;
+            border: 2px solid;
+            background: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+        }
+
+        .bbox-1 { border-color: #ff4b4b; }
+        .bbox-2 { border-color: #4bff4b; }
+        .bbox-3 { border-color: #4b4bff; }
+
+        .bbox-label {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: white;
+        }
+
+        .bbox-1 .bbox-label { background: #ff4b4b; }
+        .bbox-2 .bbox-label { background: #4bff4b; color: #000; }
+        .bbox-3 .bbox-label { background: #4b4bff; }
+
+        .annotation-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+        }
+
+        .annotation-gallery .gallery-item {
+            aspect-ratio: 1;
+        }
+
+        .annotation-gallery .gallery-item img {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Annotation sidebar */
+        .annotation-sidebar {
+            background: #1a1a24;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #3d3d4d;
+        }
+
+        .annotation-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .annotation-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: #262730;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .annotation-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            margin-right: 10px;
+        }
+
+        .annotation-info {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .annotation-coords {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 16px;
+        }
+
+        .delete-btn:hover {
+            color: #ff4b4b;
+        }
+
+        .instructions {
+            margin-top: auto;
+            padding-top: 16px;
+            border-top: 1px solid #3d3d4d;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .kbd {
+            display: inline-block;
+            padding: 2px 6px;
+            background: #3d3d4d;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        /* Processing page */
+        .processing-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #1a1a24;
+            border-radius: 12px;
+        }
+
+        .process-btn {
+            padding: 12px 32px;
+            font-size: 16px;
+        }
+
+        .progress-container {
+            flex: 1;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #3d3d4d;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4b4b, #ff8080);
+            width: 60%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .processing-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .result-viewer {
+            background: #1a1a24;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .result-title {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .result-image-container {
+            position: relative;
+            aspect-ratio: 4/3;
+            background: #0e1117;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .result-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .mask-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .processed-gallery {
+            background: #1a1a24;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .processed-gallery .gallery {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        }
+
+        /* Placeholder images */
+        .placeholder-img {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2a2a3a 0%, #1a1a24 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #444;
+            font-size: 24px;
+        }
+
+        .large-placeholder {
+            aspect-ratio: 4/3;
+            background: linear-gradient(135deg, #2a2a3a 0%, #1a1a24 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #444;
+            font-size: 48px;
+        }
+
+        /* SVG icons */
+        svg {
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <div class="logo">SAM3 UI</div>
+        <div class="nav-item active" onclick="showPage('upload')">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+            Upload
+        </div>
+        <div class="nav-item" onclick="showPage('annotation')">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            Annotation
+        </div>
+        <div class="nav-item" onclick="showPage('processing')">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            Processing
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Upload Page -->
+        <div id="upload-page" class="page active">
+            <h1 class="page-title">Upload Images</h1>
+            <p class="page-subtitle">Upload images to segment with SAM3</p>
+
+            <div class="upload-zone">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Drag and drop images here</div>
+                <div class="upload-hint">or click to browse files</div>
+                <button class="btn">Select Folder</button>
+            </div>
+
+            <div class="gallery-title">
+                Uploaded Images <span class="image-count">(6 images)</span>
+            </div>
+            <div class="gallery">
+                <div class="gallery-item">
+                    <div class="placeholder-img">🖼</div>
+                    <div class="gallery-item-overlay">
+                        <span class="status-badge status-pending">Pending</span>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <div class="placeholder-img">🖼</div>
+                    <div class="gallery-item-overlay">
+                        <span class="status-badge status-annotated">Annotated</span>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <div class="placeholder-img">🖼</div>
+                    <div class="gallery-item-overlay">
+                        <span class="status-badge status-annotated">Annotated</span>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <div class="placeholder-img">🖼</div>
+                    <div class="gallery-item-overlay">
+                        <span class="status-badge status-processed">Processed</span>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <div class="placeholder-img">🖼</div>
+                    <div class="gallery-item-overlay">
+                        <span class="status-badge status-pending">Pending</span>
+                    </div>
+                </div>
+                <div class="gallery-item">
+                    <div class="placeholder-img">🖼</div>
+                    <div class="gallery-item-overlay">
+                        <span class="status-badge status-processing">Processing</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Annotation Page -->
+        <div id="annotation-page" class="page">
+            <h1 class="page-title">Annotate Images</h1>
+            <p class="page-subtitle">Draw bounding boxes to define segmentation regions</p>
+
+            <div class="annotation-layout">
+                <div class="annotation-main">
+                    <div class="canvas-container">
+                        <div class="large-placeholder">🖼</div>
+                        <!-- Simulated bounding boxes -->
+                        <div class="bbox bbox-1" style="left: 15%; top: 20%; width: 25%; height: 35%;">
+                            <span class="bbox-label">Box 1</span>
+                        </div>
+                        <div class="bbox bbox-2" style="left: 50%; top: 30%; width: 30%; height: 40%;">
+                            <span class="bbox-label">Box 2</span>
+                        </div>
+                        <div class="bbox bbox-3" style="left: 25%; top: 60%; width: 20%; height: 25%;">
+                            <span class="bbox-label">Box 3</span>
+                        </div>
+                    </div>
+
+                    <div class="gallery-title">
+                        Select Image <span class="image-count">(6 images)</span>
+                    </div>
+                    <div class="annotation-gallery">
+                        <div class="gallery-item selected">
+                            <div class="placeholder-img" style="font-size: 16px;">🖼</div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 16px;">🖼</div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 16px;">🖼</div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 16px;">🖼</div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 16px;">🖼</div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 16px;">🖼</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="annotation-sidebar">
+                    <div class="sidebar-title">Annotations (3)</div>
+                    <div class="annotation-list">
+                        <div class="annotation-item">
+                            <div class="annotation-color" style="background: #ff4b4b;"></div>
+                            <div class="annotation-info">
+                                Box 1
+                                <div class="annotation-coords">x: 120, y: 80, w: 200, h: 280</div>
+                            </div>
+                            <button class="delete-btn">×</button>
+                        </div>
+                        <div class="annotation-item">
+                            <div class="annotation-color" style="background: #4bff4b;"></div>
+                            <div class="annotation-info">
+                                Box 2
+                                <div class="annotation-coords">x: 400, y: 120, w: 240, h: 320</div>
+                            </div>
+                            <button class="delete-btn">×</button>
+                        </div>
+                        <div class="annotation-item">
+                            <div class="annotation-color" style="background: #4b4bff;"></div>
+                            <div class="annotation-info">
+                                Box 3
+                                <div class="annotation-coords">x: 200, y: 480, w: 160, h: 200</div>
+                            </div>
+                            <button class="delete-btn">×</button>
+                        </div>
+                    </div>
+                    <div class="instructions">
+                        <p><kbd>←</kbd> <kbd>→</kbd> Navigate images</p>
+                        <p style="margin-top: 8px;">Click and drag to draw boxes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Page -->
+        <div id="processing-page" class="page">
+            <h1 class="page-title">Process Images</h1>
+            <p class="page-subtitle">Run SAM3 inference on annotated images</p>
+
+            <div class="processing-controls">
+                <button class="btn process-btn">▶ Process All Annotated</button>
+                <div class="progress-container">
+                    <div class="progress-text">Processing: 3 of 5 images (image_004.jpg)</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 60%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="processing-layout">
+                <div class="result-viewer">
+                    <div class="result-header">
+                        <span class="result-title">image_003.jpg</span>
+                        <button class="btn btn-secondary">⬇ Download COCO JSON</button>
+                    </div>
+                    <div class="result-image-container">
+                        <div class="large-placeholder" style="aspect-ratio: auto; height: 100%;">🖼</div>
+                        <!-- Mask overlay simulation -->
+                        <svg class="mask-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            <ellipse cx="30" cy="40" rx="15" ry="20" fill="rgba(255, 75, 75, 0.4)" stroke="#ff4b4b" stroke-width="0.5"/>
+                            <ellipse cx="65" cy="50" rx="18" ry="22" fill="rgba(75, 255, 75, 0.4)" stroke="#4bff4b" stroke-width="0.5"/>
+                            <ellipse cx="35" cy="75" rx="12" ry="10" fill="rgba(75, 75, 255, 0.4)" stroke="#4b4bff" stroke-width="0.5"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="processed-gallery">
+                    <div class="gallery-title">
+                        Processed Images <span class="image-count">(3 of 5)</span>
+                    </div>
+                    <div class="gallery">
+                        <div class="gallery-item selected">
+                            <div class="placeholder-img" style="font-size: 20px;">🖼</div>
+                            <div class="gallery-item-overlay">
+                                <span class="status-badge status-processed">Done</span>
+                            </div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 20px;">🖼</div>
+                            <div class="gallery-item-overlay">
+                                <span class="status-badge status-processed">Done</span>
+                            </div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 20px;">🖼</div>
+                            <div class="gallery-item-overlay">
+                                <span class="status-badge status-processed">Done</span>
+                            </div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 20px;">🖼</div>
+                            <div class="gallery-item-overlay">
+                                <span class="status-badge status-processing">...</span>
+                            </div>
+                        </div>
+                        <div class="gallery-item">
+                            <div class="placeholder-img" style="font-size: 20px;">🖼</div>
+                            <div class="gallery-item-overlay">
+                                <span class="status-badge status-annotated">Queued</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="instructions" style="margin-top: 20px;">
+                        <p><kbd>←</kbd> <kbd>→</kbd> Navigate processed images</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function showPage(pageName) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+
+            // Remove active from all nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Show selected page
+            document.getElementById(pageName + '-page').classList.add('active');
+
+            // Activate nav item
+            event.currentTarget.classList.add('active');
+        }
+    </script>
+</body>
+</html>
