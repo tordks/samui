@@ -300,6 +300,47 @@ def get_processing_status() -> dict:
     }
 
 
+@router.get("/mask/{image_id}")
+def get_mask(
+    image_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    storage: StorageService = Depends(get_storage_service),
+):
+    """Get segmentation mask image for a processed image.
+
+    Args:
+        image_id: UUID of the image.
+        db: Database session.
+        storage: Storage service.
+
+    Returns:
+        PNG mask image.
+
+    Raises:
+        HTTPException: If image not found or not processed.
+    """
+    from fastapi.responses import Response
+
+    result = (
+        db.query(ProcessingResult)
+        .filter(ProcessingResult.image_id == image_id)
+        .first()
+    )
+    if not result or not result.mask_blob_path:
+        raise HTTPException(
+            status_code=404, detail="Mask not found for this image"
+        )
+
+    try:
+        mask_bytes = storage.get_image(result.mask_blob_path)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve mask: {e}"
+        )
+
+    return Response(content=mask_bytes, media_type="image/png")
+
+
 @router.get("/export/{image_id}")
 def export_coco_json(
     image_id: uuid.UUID,

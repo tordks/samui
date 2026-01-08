@@ -1,11 +1,23 @@
 """Processing page for running SAM3 inference and viewing results."""
 
+import io
 import time
 
 import httpx
 import streamlit as st
+from PIL import Image, ImageDraw
 
 from samui_frontend.config import API_URL
+
+# Color palette for bounding boxes (matches bbox_annotator)
+BBOX_COLORS = [
+    "#ff4b4b",  # red
+    "#4bff4b",  # green
+    "#4b4bff",  # blue
+    "#ffff4b",  # yellow
+    "#ff4bff",  # magenta
+    "#4bffff",  # cyan
+]
 
 
 def _fetch_images() -> list[dict]:
@@ -30,11 +42,76 @@ def _fetch_image_data(image_id: str) -> bytes | None:
 
 
 def _fetch_mask_data(image_id: str) -> bytes | None:
-    """Fetch mask data from the API (stored in blob storage)."""
-    # The mask is stored at a known path pattern
-    # We'll need to expose this through the API or use a dedicated endpoint
-    # For now, we'll skip mask overlay as it requires additional API work
+    """Fetch mask data from the API."""
+    try:
+        response = httpx.get(f"{API_URL}/process/mask/{image_id}", timeout=10.0)
+        if response.status_code == 200:
+            return response.content
+    except httpx.HTTPError:
+        pass
     return None
+
+
+def _fetch_annotations(image_id: str) -> list[dict]:
+    """Fetch annotations for an image."""
+    try:
+        response = httpx.get(f"{API_URL}/annotations/{image_id}", timeout=10.0)
+        if response.status_code == 200:
+            return response.json().get("annotations", [])
+    except httpx.HTTPError:
+        pass
+    return []
+
+
+def _create_overlay_image(
+    image_data: bytes,
+    mask_data: bytes | None,
+    annotations: list[dict],
+) -> Image.Image:
+    """Create an image with bbox and mask overlays.
+
+    Args:
+        image_data: Original image bytes.
+        mask_data: Mask image bytes (grayscale PNG) or None.
+        annotations: List of annotation dicts with bbox coordinates.
+
+    Returns:
+        PIL Image with overlays applied.
+    """
+    # Load the original image
+    image = Image.open(io.BytesIO(image_data)).convert("RGBA")
+    draw = ImageDraw.Draw(image)
+
+    # Draw bounding boxes
+    for idx, ann in enumerate(annotations):
+        color = BBOX_COLORS[idx % len(BBOX_COLORS)]
+        x1 = ann["bbox_x"]
+        y1 = ann["bbox_y"]
+        x2 = x1 + ann["bbox_width"]
+        y2 = y1 + ann["bbox_height"]
+
+        # Draw rectangle
+        draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
+
+        # Draw label
+        label = f"Box {idx + 1}"
+        label_bbox = draw.textbbox((x1, y1 - 20), label)
+        draw.rectangle(label_bbox, fill=color)
+        draw.text((x1, y1 - 20), label, fill="white")
+
+    # Overlay mask if available
+    if mask_data:
+        mask = Image.open(io.BytesIO(mask_data)).convert("L")
+
+        # Resize mask to match image if needed
+        if mask.size != image.size:
+            mask = mask.resize(image.size, Image.NEAREST)
+
+        # Where mask is white (255), overlay semi-transparent green
+        mask_rgba = Image.new("RGBA", image.size, (0, 255, 0, 100))
+        image = Image.composite(mask_rgba, image, mask)
+
+    return image.convert("RGB")
 
 
 def _start_processing(image_ids: list[str]) -> dict | None:
@@ -146,10 +223,13 @@ def _render_result_viewer(processed_images: list[dict]) -> None:
                 mime="application/json",
             )
 
-    # Display the image
+    # Display the image with overlays
     image_data = _fetch_image_data(current_image["id"])
     if image_data:
-        st.image(image_data, use_container_width=True)
+        mask_data = _fetch_mask_data(current_image["id"])
+        annotations = _fetch_annotations(current_image["id"])
+        overlay_image = _create_overlay_image(image_data, mask_data, annotations)
+        st.image(overlay_image, use_container_width=True)
     else:
         st.error("Failed to load image")
 
