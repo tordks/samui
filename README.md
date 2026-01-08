@@ -2,78 +2,6 @@
 
 A web-based interface for SAM3 image segmentation. Upload images, draw bounding box prompts, run inference, and export results in COCO format.
 
-## Current Status
-
-**Phase 1: Upload Flow** - Complete
-
-- Image upload via drag-and-drop
-- Azure Blob Storage integration (Azurite for local dev)
-- PostgreSQL metadata persistence
-- Tiled image gallery display
-
-**Phase 2: Annotation Flow** - Complete
-
-- Bounding box annotation with click-and-drag
-- Multi-bbox support with colored overlays
-- Annotation list sidebar with delete buttons
-- Image navigation (previous/next, thumbnail gallery)
-- Auto-status update to 'annotated' on first annotation
-
-**Phase 3: Processing Flow** - Complete
-
-- SAM3 inference with batched box prompts (predict_inst API)
-- Background task processing with progress tracking
-- COCO JSON export with RLE segmentation format
-- Processed image viewer with mask display
-- Per-image COCO download
-
-## Project Structure
-
-```
-samui/
-├── pyproject.toml                 # Dev dependencies (ruff, pytest)
-├── docker-compose.yaml            # Local development stack
-├── .env.example                   # Environment variables template
-├── packages/
-│   ├── samui-backend/             # FastAPI + SAM3 (isolated package)
-│   │   ├── pyproject.toml
-│   │   ├── Dockerfile
-│   │   └── src/samui_backend/
-│   │       ├── main.py            # FastAPI app entry point
-│   │       ├── config.py          # Settings from env vars
-│   │       ├── schemas.py         # Pydantic models
-│   │       ├── db/
-│   │       │   ├── database.py    # SQLAlchemy engine
-│   │       │   └── models.py      # Image, Annotation, ProcessingResult
-│   │       ├── routes/
-│   │       │   ├── images.py      # Image CRUD endpoints
-│   │       │   ├── annotations.py # Annotation CRUD endpoints
-│   │       │   └── processing.py  # SAM3 inference endpoints
-│   │       └── services/
-│   │           ├── storage.py     # Azure Blob Storage client
-│   │           ├── sam3_inference.py  # SAM3 model wrapper
-│   │           └── coco_export.py # COCO JSON generation
-│   └── samui-frontend/            # Streamlit (isolated package)
-│       ├── pyproject.toml
-│       ├── Dockerfile
-│       └── src/samui_frontend/
-│           ├── app.py             # Streamlit entry point
-│           ├── config.py          # API URL setting
-│           ├── pages/
-│           │   ├── upload.py      # Upload page
-│           │   ├── annotation.py  # Annotation page
-│           │   └── processing.py  # Processing page
-│           └── components/
-│               ├── image_gallery.py
-│               └── bbox_annotator.py  # Bounding box drawing
-└── tests/
-    ├── conftest.py                # Test fixtures
-    ├── test_api_images.py         # Image API tests
-    ├── test_api_annotations.py    # Annotation API tests
-    ├── test_sam3_inference.py     # SAM3 service tests
-    └── test_coco_export.py        # COCO export tests
-```
-
 ## Quick Start
 
 ### Prerequisites
@@ -123,6 +51,53 @@ cd packages/samui-backend
 uv run pytest ../../tests/ -v
 ```
 
+## Project Structure
+
+```
+samui/
+├── pyproject.toml                 # Dev dependencies (ruff, pytest)
+├── docker-compose.yaml            # Local development stack
+├── .env.example                   # Environment variables template
+├── packages/
+│   ├── samui-backend/             # FastAPI + SAM3 (isolated package)
+│   │   ├── pyproject.toml
+│   │   ├── Dockerfile
+│   │   └── src/samui_backend/
+│   │       ├── main.py            # FastAPI app entry point
+│   │       ├── config.py          # Settings from env vars
+│   │       ├── schemas.py         # Pydantic models
+│   │       ├── db/
+│   │       │   ├── database.py    # SQLAlchemy engine
+│   │       │   └── models.py      # Image, Annotation, ProcessingResult
+│   │       ├── routes/
+│   │       │   ├── images.py      # Image CRUD endpoints
+│   │       │   ├── annotations.py # Annotation CRUD endpoints
+│   │       │   └── processing.py  # SAM3 inference endpoints
+│   │       └── services/
+│   │           ├── storage.py     # Azure Blob Storage client
+│   │           ├── sam3_inference.py  # SAM3 model wrapper
+│   │           └── coco_export.py # COCO JSON generation
+│   └── samui-frontend/            # Streamlit (isolated package)
+│       ├── pyproject.toml
+│       ├── Dockerfile
+│       └── src/samui_frontend/
+│           ├── app.py             # Streamlit entry point
+│           ├── config.py          # API URL setting
+│           ├── pages/
+│           │   ├── upload.py      # Upload page
+│           │   ├── annotation.py  # Annotation page
+│           │   └── processing.py  # Processing page
+│           └── components/
+│               ├── image_gallery.py
+│               └── bbox_annotator.py  # Bounding box drawing
+└── tests/
+    ├── conftest.py                # Test fixtures
+    ├── test_api_images.py         # Image API tests
+    ├── test_api_annotations.py    # Annotation API tests
+    ├── test_sam3_inference.py     # SAM3 service tests
+    └── test_coco_export.py        # COCO export tests
+```
+
 ## API Endpoints
 
 ### Images
@@ -167,6 +142,7 @@ Environment variables (see `.env.example`):
 | `AZURE_STORAGE_CONNECTION_STRING` | Azure Blob Storage connection | Azurite default |
 | `AZURE_CONTAINER_NAME` | Blob container name | `samui-images` |
 | `SAM3_MODEL_NAME` | SAM3 model to use | `sam3_hiera_large` |
+| `HF_TOKEN` | Hugging Face token for model download | (required) |
 | `API_URL` | Backend URL for frontend | `http://localhost:8000` |
 
 ## Architecture
