@@ -11,7 +11,13 @@ A web-based interface for SAM3 image segmentation. Upload images, draw bounding 
 - PostgreSQL metadata persistence
 - Tiled image gallery display
 
-**Phase 2: Annotation Flow** - Not started
+**Phase 2: Annotation Flow** - Complete
+
+- Bounding box annotation with click-and-drag
+- Multi-bbox support with colored overlays
+- Annotation list sidebar with delete buttons
+- Image navigation (previous/next, thumbnail gallery)
+- Auto-status update to 'annotated' on first annotation
 
 **Phase 3: Processing Flow** - Not started
 
@@ -32,9 +38,10 @@ samui/
 │   │       ├── schemas.py         # Pydantic models
 │   │       ├── db/
 │   │       │   ├── database.py    # SQLAlchemy engine
-│   │       │   └── models.py      # Image model
+│   │       │   └── models.py      # Image, Annotation models
 │   │       ├── routes/
-│   │       │   └── images.py      # Image CRUD endpoints
+│   │       │   ├── images.py      # Image CRUD endpoints
+│   │       │   └── annotations.py # Annotation CRUD endpoints
 │   │       └── services/
 │   │           └── storage.py     # Azure Blob Storage client
 │   └── samui-frontend/            # Streamlit (light deps)
@@ -44,12 +51,15 @@ samui/
 │           ├── app.py             # Streamlit entry point
 │           ├── config.py          # API URL setting
 │           ├── pages/
-│           │   └── upload.py      # Upload page
+│           │   ├── upload.py      # Upload page
+│           │   └── annotation.py  # Annotation page
 │           └── components/
-│               └── image_gallery.py
+│               ├── image_gallery.py
+│               └── bbox_annotator.py  # Bounding box drawing
 └── tests/
     ├── conftest.py                # Test fixtures
-    └── test_api_images.py         # Image API tests
+    ├── test_api_images.py         # Image API tests
+    └── test_api_annotations.py    # Annotation API tests
 ```
 
 ## Quick Start
@@ -107,6 +117,8 @@ uv run pytest tests/ -v --cov=packages
 
 ## API Endpoints
 
+### Images
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/images` | Upload image (multipart/form-data) |
@@ -114,6 +126,19 @@ uv run pytest tests/ -v --cov=packages
 | GET | `/images/{id}` | Get image metadata |
 | GET | `/images/{id}/data` | Get image binary data |
 | DELETE | `/images/{id}` | Delete image |
+
+### Annotations
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/annotations` | Create bounding box annotation |
+| GET | `/annotations/{image_id}` | Get all annotations for an image |
+| DELETE | `/annotations/{id}` | Delete annotation |
+
+### System
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/health` | Health check |
 
 ## Configuration
