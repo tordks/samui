@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from samui_frontend.pages import annotation, upload
+from samui_frontend.pages import annotation, processing, upload
 
 
 st.set_page_config(
@@ -26,4 +26,4 @@ if page == "Upload":
 elif page == "Annotation":
     annotation.render()
 elif page == "Processing":
-    st.info("Processing page will be implemented in Phase 3")
+    processing.render()

@@ -67,3 +67,41 @@ class AnnotationList(BaseModel):
 
     annotations: list[AnnotationResponse]
     total: int
+
+
+class ProcessRequest(BaseModel):
+    """Schema for requesting processing of images."""
+
+    image_ids: list[uuid.UUID]
+
+
+class ProcessResponse(BaseModel):
+    """Schema for processing start response."""
+
+    batch_id: uuid.UUID
+    total_images: int
+    message: str
+
+
+class ProcessStatus(BaseModel):
+    """Schema for processing status response."""
+
+    batch_id: uuid.UUID | None
+    is_running: bool
+    processed_count: int
+    total_count: int
+    current_image_id: uuid.UUID | None
+    current_image_filename: str | None
+
+
+class ProcessingResultResponse(BaseModel):
+    """Schema for processing result response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    image_id: uuid.UUID
+    mask_blob_path: str
+    coco_json_blob_path: str
+    processed_at: datetime
+    batch_id: uuid.UUID

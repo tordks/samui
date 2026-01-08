@@ -19,17 +19,23 @@ A web-based interface for SAM3 image segmentation. Upload images, draw bounding 
 - Image navigation (previous/next, thumbnail gallery)
 - Auto-status update to 'annotated' on first annotation
 
-**Phase 3: Processing Flow** - Not started
+**Phase 3: Processing Flow** - Complete
+
+- SAM3 inference with batched box prompts (predict_inst API)
+- Background task processing with progress tracking
+- COCO JSON export with RLE segmentation format
+- Processed image viewer with mask display
+- Per-image COCO download
 
 ## Project Structure
 
 ```
 samui/
-├── pyproject.toml                 # uv workspace root
+├── pyproject.toml                 # Dev dependencies (ruff, pytest)
 ├── docker-compose.yaml            # Local development stack
 ├── .env.example                   # Environment variables template
 ├── packages/
-│   ├── samui-backend/             # FastAPI + SAM3 (heavy deps)
+│   ├── samui-backend/             # FastAPI + SAM3 (isolated package)
 │   │   ├── pyproject.toml
 │   │   ├── Dockerfile
 │   │   └── src/samui_backend/
@@ -38,13 +44,16 @@ samui/
 │   │       ├── schemas.py         # Pydantic models
 │   │       ├── db/
 │   │       │   ├── database.py    # SQLAlchemy engine
-│   │       │   └── models.py      # Image, Annotation models
+│   │       │   └── models.py      # Image, Annotation, ProcessingResult
 │   │       ├── routes/
 │   │       │   ├── images.py      # Image CRUD endpoints
-│   │       │   └── annotations.py # Annotation CRUD endpoints
+│   │       │   ├── annotations.py # Annotation CRUD endpoints
+│   │       │   └── processing.py  # SAM3 inference endpoints
 │   │       └── services/
-│   │           └── storage.py     # Azure Blob Storage client
-│   └── samui-frontend/            # Streamlit (light deps)
+│   │           ├── storage.py     # Azure Blob Storage client
+│   │           ├── sam3_inference.py  # SAM3 model wrapper
+│   │           └── coco_export.py # COCO JSON generation
+│   └── samui-frontend/            # Streamlit (isolated package)
 │       ├── pyproject.toml
 │       ├── Dockerfile
 │       └── src/samui_frontend/
@@ -52,14 +61,17 @@ samui/
 │           ├── config.py          # API URL setting
 │           ├── pages/
 │           │   ├── upload.py      # Upload page
-│           │   └── annotation.py  # Annotation page
+│           │   ├── annotation.py  # Annotation page
+│           │   └── processing.py  # Processing page
 │           └── components/
 │               ├── image_gallery.py
 │               └── bbox_annotator.py  # Bounding box drawing
 └── tests/
     ├── conftest.py                # Test fixtures
     ├── test_api_images.py         # Image API tests
-    └── test_api_annotations.py    # Annotation API tests
+    ├── test_api_annotations.py    # Annotation API tests
+    ├── test_sam3_inference.py     # SAM3 service tests
+    └── test_coco_export.py        # COCO export tests
 ```
 
 ## Quick Start
@@ -86,33 +98,29 @@ open http://localhost:8000/docs
 ### Local Development
 
 ```bash
-# Install dependencies
-uv sync
-
-# Install backend package
-uv sync --package samui-backend
-
 # Start infrastructure (postgres + azurite)
 docker compose up postgres azurite -d
 
 # Copy environment file
 cp .env.example .env
 
-# Run backend
-uv run --package samui-backend uvicorn samui_backend.main:app --reload
+# Install and run backend (from packages/samui-backend)
+cd packages/samui-backend
+uv sync
+uv run uvicorn samui_backend.main:app --reload
 
-# Run frontend (in another terminal)
-uv run --package samui-frontend streamlit run packages/samui-frontend/src/samui_frontend/app.py
+# Install and run frontend (from packages/samui-frontend, in another terminal)
+cd packages/samui-frontend
+uv sync
+uv run streamlit run src/samui_frontend/app.py
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
-uv run pytest tests/ -v
-
-# Run with coverage
-uv run pytest tests/ -v --cov=packages
+# Run all tests (from packages/samui-backend)
+cd packages/samui-backend
+uv run pytest ../../tests/ -v
 ```
 
 ## API Endpoints
@@ -134,6 +142,14 @@ uv run pytest tests/ -v --cov=packages
 | POST | `/annotations` | Create bounding box annotation |
 | GET | `/annotations/{image_id}` | Get all annotations for an image |
 | DELETE | `/annotations/{id}` | Delete annotation |
+
+### Processing
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/process` | Start batch SAM3 inference |
+| GET | `/process/status` | Get processing progress |
+| GET | `/process/export/{image_id}` | Download COCO JSON for image |
 
 ### System
 
@@ -180,12 +196,19 @@ uvx mypy packages/
 ### Adding Dependencies
 
 ```bash
-# Backend
-uv add --package samui-backend <package>
+# Backend (from packages/samui-backend)
+cd packages/samui-backend
+uv add <package>
 
-# Frontend
-uv add --package samui-frontend <package>
-
-# Dev dependencies (workspace root)
-uv add --dev <package>
+# Frontend (from packages/samui-frontend)
+cd packages/samui-frontend
+uv add <package>
 ```
+
+
+## TODO
+
+- Use pytorch GPU enabled image for backend Docker container
+- Make os.path -> pathlib throughout codebase
+- Make sure to use dataclasses instead of dicts where appropriate
+- GPU hardware detection and conditionals for CUDA/MPS/CPU

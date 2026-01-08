@@ -2,21 +2,19 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install git (needed for sam3 from GitHub)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy workspace files
-COPY pyproject.toml ./
-COPY packages/samui-backend/pyproject.toml packages/samui-backend/
-COPY packages/samui-backend/src packages/samui-backend/src
-
-# Create minimal frontend pyproject.toml to satisfy workspace
-RUN mkdir -p packages/samui-frontend && \
-    echo '[project]\nname = "samui-frontend"\nversion = "0.1.0"\nrequires-python = ">=3.11"\ndependencies = []' > packages/samui-frontend/pyproject.toml
+# Copy backend package files (build context is project root)
+COPY packages/samui-backend/pyproject.toml ./pyproject.toml
+COPY packages/samui-backend/src ./src
 
 # Install dependencies
-RUN uv sync --package samui-backend
+RUN uv sync
 
 EXPOSE 8000
 
-CMD ["uv", "run", "--package", "samui-backend", "uvicorn", "samui_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "samui_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

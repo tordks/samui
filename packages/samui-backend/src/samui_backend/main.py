@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from samui_backend.db.database import Base, engine
-from samui_backend.routes import annotations_router, images_router
+from samui_backend.routes import annotations_router, images_router, processing_router
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ app.add_middleware(
 # Include routers
 app.include_router(images_router)
 app.include_router(annotations_router)
+app.include_router(processing_router)
 
 
 @app.get("/health")

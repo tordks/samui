@@ -4,9 +4,6 @@ version = "0.1.0"
 description = "SAM3 Web UI for image segmentation"
 requires-python = ">=3.11"
 
-[tool.uv.workspace]
-members = ["packages/samui-backend", "packages/samui-frontend"]
-
 [dependency-groups]
 dev = [
     "pytest>=8.0",
@@ -14,7 +11,3 @@ dev = [
     "httpx>=0.28",
     "pillow>=11.0",
 ]
-
-[tool.uv.sources]
-samui-backend = { workspace = true }
-samui-frontend = { workspace = true }

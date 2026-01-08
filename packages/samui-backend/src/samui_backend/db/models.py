@@ -42,6 +42,9 @@ class Image(Base):
     annotations: Mapped[list["Annotation"]] = relationship(
         "Annotation", back_populates="image", cascade="all, delete-orphan"
     )
+    processing_result: Mapped["ProcessingResult | None"] = relationship(
+        "ProcessingResult", back_populates="image", cascade="all, delete-orphan", uselist=False
+    )
 
 
 class Annotation(Base):
@@ -64,3 +67,27 @@ class Annotation(Base):
     )
 
     image: Mapped["Image"] = relationship("Image", back_populates="annotations")
+
+
+class ProcessingResult(Base):
+    """Processing result model storing mask and COCO JSON paths."""
+
+    __tablename__ = "processing_results"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    image_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("images.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    mask_blob_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    coco_json_blob_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    processed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    batch_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+
+    image: Mapped["Image"] = relationship("Image", back_populates="processing_result")
