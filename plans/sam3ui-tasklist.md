@@ -31,13 +31,13 @@
 - [x] [P1.19] Create `tests/conftest.py` with test database fixture and test client
 - [x] [P1.20] Create `tests/test_api_images.py` with tests for upload, list, and delete endpoints
 - [x] [P1.21] Run tests: `uv run pytest tests/test_api_images.py -v`
-- [ ] [P1.22] Verify full flow manually: `docker compose up`, upload images via UI, confirm images appear in gallery
+- [x] [P1.22] Verify full flow manually: `docker compose up`, upload images via UI, confirm images appear in gallery
 
 **Checkpoints:**
 
 - [x] Code quality: Run `uvx ruff check packages/`
 - [x] Code complexity: Run `uvx ruff check packages/ --select C901,PLR0912,PLR0915`
-- [ ] Review: Verify upload page works end-to-end (upload → storage → DB → gallery display)
+- [x] Review: Verify upload page works end-to-end (upload → storage → DB → gallery display)
 
 **Phase 1 Complete:** Infrastructure established with split packages. Users can upload images via drag-and-drop, images are stored in Azurite blob storage with metadata in PostgreSQL (auto-initialized on backend startup), and uploaded images display in a tiled gallery. Frontend container is lightweight (no torch).
 
@@ -51,34 +51,34 @@
 
 **Tasks:**
 
-- [ ] [P2.1] Add Annotation model to `packages/samui-backend/src/samui_backend/db/models.py` (id, image_id FK, bbox_x, bbox_y, bbox_width, bbox_height, created_at)
-- [ ] [P2.2] Add annotation schemas to `packages/samui-backend/src/samui_backend/schemas.py`: AnnotationCreate, AnnotationResponse, AnnotationList
-- [ ] [P2.3] Create `packages/samui-backend/src/samui_backend/routes/annotations.py` with POST /annotations, GET /annotations/{image_id}, DELETE /annotations/{id}
-- [ ] [P2.4] Register annotations router in `packages/samui-backend/src/samui_backend/main.py`
-- [ ] [P2.5] Prototype streamlit-image-coordinates: verify rectangle selection and multi-bbox overlay rendering meets requirements before building full annotator
-- [ ] [P2.6] Create `packages/samui-frontend/src/samui_frontend/components/bbox_annotator.py` using streamlit-image-coordinates for rectangle selection
+- [x] [P2.1] Add Annotation model to `packages/samui-backend/src/samui_backend/db/models.py` (id, image_id FK, bbox_x, bbox_y, bbox_width, bbox_height, created_at)
+- [x] [P2.2] Add annotation schemas to `packages/samui-backend/src/samui_backend/schemas.py`: AnnotationCreate, AnnotationResponse, AnnotationList
+- [x] [P2.3] Create `packages/samui-backend/src/samui_backend/routes/annotations.py` with POST /annotations, GET /annotations/{image_id}, DELETE /annotations/{id}
+- [x] [P2.4] Register annotations router in `packages/samui-backend/src/samui_backend/main.py`
+- [x] [P2.5] Prototype streamlit-image-coordinates: verify rectangle selection and multi-bbox overlay rendering meets requirements before building full annotator
+- [x] [P2.6] Create `packages/samui-frontend/src/samui_frontend/components/bbox_annotator.py` using streamlit-image-coordinates for rectangle selection
   - Display image at large size
   - Capture rectangle coordinates on draw
   - Render existing bboxes as colored overlays (different color per bbox)
   - Return bbox coordinates to parent
-- [ ] [P2.7] Create `packages/samui-frontend/src/samui_frontend/pages/annotation.py` with page layout and bbox_annotator component integration
-- [ ] [P2.8] Add annotation list panel to annotation.py with delete buttons and API calls to create/delete annotations
-- [ ] [P2.9] Add image navigation to annotation.py: tiled gallery for selection and arrow key navigation between images
-- [ ] [P2.10] Update `packages/samui-frontend/src/samui_frontend/app.py` to include annotation page in navigation
-- [ ] [P2.11] Update Image model processing_status to 'annotated' when first annotation added (in annotations route)
-- [ ] [P2.12] Create `tests/test_api_annotations.py` with tests for annotation endpoints:
+- [x] [P2.7] Create `packages/samui-frontend/src/samui_frontend/pages/annotation.py` with page layout and bbox_annotator component integration
+- [x] [P2.8] Add annotation list panel to annotation.py with delete buttons and API calls to create/delete annotations
+- [x] [P2.9] Add image navigation to annotation.py: tiled gallery for selection and arrow key navigation between images
+- [x] [P2.10] Update `packages/samui-frontend/src/samui_frontend/app.py` to include annotation page in navigation
+- [x] [P2.11] Update Image model processing_status to 'annotated' when first annotation added (in annotations route)
+- [x] [P2.12] Create `tests/test_api_annotations.py` with tests for annotation endpoints:
   - POST /annotations: success, image not found (404), invalid bbox (400), multiple annotations same image
   - GET /annotations/{image_id}: returns list, empty list, image not found (404)
   - DELETE /annotations/{id}: success, not found (404)
   - Status update: first annotation sets image status to 'annotated'
-- [ ] [P2.13] Run tests: `uv run pytest tests/test_api_annotations.py -v`
-- [ ] [P2.14] Verify annotation flow manually: navigate to image, draw bboxes, see them persist on page refresh, delete annotations
+- [x] [P2.13] Run tests: `uv run pytest tests/test_api_annotations.py -v`
+- [x] [P2.14] Verify annotation flow manually: navigate to image, draw bboxes, see them persist on page refresh, delete annotations
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/`
-- [ ] Code complexity: Run `uvx ruff check packages/ --select C901,PLR0912,PLR0915`
-- [ ] Review: Verify annotation page works (draw bbox → save → reload → bbox visible, delete works, navigation works)
+- [x] Code quality: Run `uvx ruff check packages/`
+- [x] Code complexity: Run `uvx ruff check packages/ --select C901,PLR0912,PLR0915`
+- [x] Review: Verify annotation page works (draw bbox → save → reload → bbox visible, delete works, navigation works)
 
 **Phase 2 Complete:** Annotation system working. Users can select images, draw multiple bounding boxes with visual feedback, view/delete annotations, and navigate between images. Annotations persist to database.
 

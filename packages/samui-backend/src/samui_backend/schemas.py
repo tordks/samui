@@ -36,3 +36,34 @@ class ImageList(BaseModel):
 
     images: list[ImageResponse]
     total: int
+
+
+class AnnotationCreate(BaseModel):
+    """Schema for creating an annotation."""
+
+    image_id: uuid.UUID
+    bbox_x: int
+    bbox_y: int
+    bbox_width: int
+    bbox_height: int
+
+
+class AnnotationResponse(BaseModel):
+    """Schema for annotation response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    image_id: uuid.UUID
+    bbox_x: int
+    bbox_y: int
+    bbox_width: int
+    bbox_height: int
+    created_at: datetime
+
+
+class AnnotationList(BaseModel):
+    """Schema for list of annotations response."""
+
+    annotations: list[AnnotationResponse]
+    total: int
