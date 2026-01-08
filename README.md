@@ -184,6 +184,9 @@ uv add <package>
 
 ## TODO
 
+- Fix state. updated bbox does not update processed status
+- Fix very large processed image size in processing page
+- Fix duplicated upload/annotation/processing pages in sidebar
 - Make os.path -> pathlib throughout codebase
 - Make sure to use dataclasses instead of dicts where appropriate
 - GPU hardware detection and conditionals for CUDA/MPS/CPU

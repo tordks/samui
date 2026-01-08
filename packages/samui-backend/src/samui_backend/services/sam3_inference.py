@@ -90,9 +90,11 @@ class SAM3Service:
                 multimask_output=False,
             )
 
-        # masks shape: (num_boxes, 1, H, W) -> squeeze to (num_boxes, H, W)
-        # Convert to binary uint8 masks
-        masks = (masks.squeeze(1) > 0).astype(np.uint8) * 255
+        # masks shape varies: (num_boxes, num_masks, H, W) or (num_boxes, H, W)
+        # Take first mask per box if 4D, then convert to binary uint8
+        if masks.ndim == 4:
+            masks = masks[:, 0]  # (num_boxes, H, W)
+        masks = (masks > 0).astype(np.uint8) * 255
 
         logger.info(f"Generated {len(masks)} masks for {len(bboxes)} bboxes")
         return masks
