@@ -208,7 +208,6 @@ uv add <package>
 
 ## TODO
 
-- Use pytorch GPU enabled image for backend Docker container
 - Make os.path -> pathlib throughout codebase
 - Make sure to use dataclasses instead of dicts where appropriate
 - GPU hardware detection and conditionals for CUDA/MPS/CPU
