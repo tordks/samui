@@ -1,0 +1,43 @@
+"""FastAPI application entry point."""
+
+from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from samui_backend.db.database import Base, engine
+from samui_backend.routes import images_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Application lifespan: create database tables on startup."""
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(
+    title="SAM3 WebUI API",
+    description="Backend API for SAM3 image segmentation web interface",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(images_router)
+
+
+@app.get("/health")
+def health_check() -> dict[str, str]:
+    """Health check endpoint."""
+    return {"status": "healthy"}

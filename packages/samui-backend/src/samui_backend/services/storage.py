@@ -1,0 +1,101 @@
+"""Azure Blob Storage service for image storage."""
+
+import uuid
+from io import BytesIO
+
+from azure.storage.blob import BlobServiceClient, ContentSettings
+from PIL import Image
+
+from samui_backend.config import settings
+
+
+class StorageService:
+    """Service for managing image storage in Azure Blob Storage."""
+
+    def __init__(self) -> None:
+        """Initialize the storage service."""
+        self._client = BlobServiceClient.from_connection_string(
+            settings.azure_storage_connection_string
+        )
+        self._container_name = settings.azure_container_name
+        self._ensure_container_exists()
+
+    def _ensure_container_exists(self) -> None:
+        """Create container if it doesn't exist."""
+        container_client = self._client.get_container_client(self._container_name)
+        if not container_client.exists():
+            container_client.create_container()
+
+    def upload_image(self, file_content: bytes, filename: str) -> tuple[str, int, int]:
+        """Upload an image to blob storage.
+
+        Args:
+            file_content: Raw image bytes.
+            filename: Original filename.
+
+        Returns:
+            Tuple of (blob_path, width, height).
+        """
+        # Get image dimensions
+        img = Image.open(BytesIO(file_content))
+        width, height = img.size
+
+        # Generate unique blob path
+        extension = filename.rsplit(".", 1)[-1] if "." in filename else "jpg"
+        blob_path = f"images/{uuid.uuid4()}.{extension}"
+
+        # Determine content type
+        content_type = f"image/{extension.lower()}"
+        if extension.lower() == "jpg":
+            content_type = "image/jpeg"
+
+        # Upload to blob storage
+        blob_client = self._client.get_blob_client(
+            container=self._container_name, blob=blob_path
+        )
+        blob_client.upload_blob(
+            file_content,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=content_type),
+        )
+
+        return blob_path, width, height
+
+    def get_image(self, blob_path: str) -> bytes:
+        """Download an image from blob storage.
+
+        Args:
+            blob_path: Path to the blob.
+
+        Returns:
+            Raw image bytes.
+        """
+        blob_client = self._client.get_blob_client(
+            container=self._container_name, blob=blob_path
+        )
+        return blob_client.download_blob().readall()
+
+    def get_image_url(self, blob_path: str) -> str:
+        """Get a URL for accessing an image.
+
+        Args:
+            blob_path: Path to the blob.
+
+        Returns:
+            URL to access the image.
+        """
+        blob_client = self._client.get_blob_client(
+            container=self._container_name, blob=blob_path
+        )
+        return blob_client.url
+
+    def delete_image(self, blob_path: str) -> None:
+        """Delete an image from blob storage.
+
+        Args:
+            blob_path: Path to the blob.
+        """
+        blob_client = self._client.get_blob_client(
+            container=self._container_name, blob=blob_path
+        )
+        blob_client.delete_blob(delete_snapshots="include")

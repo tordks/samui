@@ -10,33 +10,33 @@
 
 **Tasks:**
 
-- [ ] [P1.1] Create root `pyproject.toml` as uv workspace with members `packages/samui-backend` and `packages/samui-frontend`, dev dependencies (pytest, ruff)
-- [ ] [P1.2] Create `packages/samui-backend/pyproject.toml` with dependencies (fastapi, uvicorn, sqlalchemy, psycopg2-binary, azure-storage-blob, pydantic, pillow, numpy) and src layout
-- [ ] [P1.3] Create `packages/samui-frontend/pyproject.toml` with dependencies (streamlit, streamlit-image-coordinates, httpx, pydantic, pillow) and src layout
-- [ ] [P1.4] Create `docker-compose.yaml` with services: postgres, azurite, backend (builds samui-backend), frontend (builds samui-frontend)
-- [ ] [P1.5] Create `packages/samui-backend/Dockerfile` for FastAPI service
-- [ ] [P1.6] Create `packages/samui-frontend/Dockerfile` for Streamlit service
-- [ ] [P1.7] Create `.env.example` with DATABASE_URL, AZURE_STORAGE_CONNECTION_STRING, AZURE_CONTAINER_NAME, SAM3_MODEL_NAME, API_URL
-- [ ] [P1.8] Create `packages/samui-backend/src/samui_backend/__init__.py` and `config.py` with pydantic Settings class loading env vars
-- [ ] [P1.9] Create `packages/samui-backend/src/samui_backend/db/database.py` with SQLAlchemy engine, SessionLocal, and Base
-- [ ] [P1.10] Create `packages/samui-backend/src/samui_backend/db/models.py` with Image model (id, filename, blob_path, width, height, created_at, processing_status enum)
-- [ ] [P1.11] Create `packages/samui-backend/src/samui_backend/services/storage.py` with StorageService class (upload_image, get_image, delete_image, get_image_url methods)
-- [ ] [P1.12] Create `packages/samui-backend/src/samui_backend/schemas.py` with Pydantic models: ImageCreate, ImageResponse, ImageList
-- [ ] [P1.13] Create `packages/samui-backend/src/samui_backend/routes/images.py` with POST /images (upload), GET /images (list), GET /images/{id}, DELETE /images/{id}
-- [ ] [P1.14] Create `packages/samui-backend/src/samui_backend/main.py` with FastAPI app, lifespan that calls `create_all()` for DB init, include images router, add CORS middleware
-- [ ] [P1.15] Create `packages/samui-frontend/src/samui_frontend/__init__.py` and `config.py` with API_URL setting
-- [ ] [P1.16] Create `packages/samui-frontend/src/samui_frontend/components/image_gallery.py` with reusable tiled image gallery component
-- [ ] [P1.17] Create `packages/samui-frontend/src/samui_frontend/pages/upload.py` with drag-and-drop upload, file selector, and image gallery display
-- [ ] [P1.18] Create `packages/samui-frontend/src/samui_frontend/app.py` as Streamlit entry point with page navigation
-- [ ] [P1.19] Create `tests/conftest.py` with test database fixture and test client
-- [ ] [P1.20] Create `tests/test_api_images.py` with tests for upload, list, and delete endpoints
-- [ ] [P1.21] Run tests: `uv run pytest tests/test_api_images.py -v`
+- [x] [P1.1] Create root `pyproject.toml` as uv workspace with members `packages/samui-backend` and `packages/samui-frontend`, dev dependencies (pytest, ruff)
+- [x] [P1.2] Create `packages/samui-backend/pyproject.toml` with dependencies (fastapi, uvicorn, sqlalchemy, psycopg2-binary, azure-storage-blob, pydantic, pillow, numpy) and src layout
+- [x] [P1.3] Create `packages/samui-frontend/pyproject.toml` with dependencies (streamlit, streamlit-image-coordinates, httpx, pydantic, pillow) and src layout
+- [x] [P1.4] Create `docker-compose.yaml` with services: postgres, azurite, backend (builds samui-backend), frontend (builds samui-frontend)
+- [x] [P1.5] Create `packages/samui-backend/Dockerfile` for FastAPI service
+- [x] [P1.6] Create `packages/samui-frontend/Dockerfile` for Streamlit service
+- [x] [P1.7] Create `.env.example` with DATABASE_URL, AZURE_STORAGE_CONNECTION_STRING, AZURE_CONTAINER_NAME, SAM3_MODEL_NAME, API_URL
+- [x] [P1.8] Create `packages/samui-backend/src/samui_backend/__init__.py` and `config.py` with pydantic Settings class loading env vars
+- [x] [P1.9] Create `packages/samui-backend/src/samui_backend/db/database.py` with SQLAlchemy engine, SessionLocal, and Base
+- [x] [P1.10] Create `packages/samui-backend/src/samui_backend/db/models.py` with Image model (id, filename, blob_path, width, height, created_at, processing_status enum)
+- [x] [P1.11] Create `packages/samui-backend/src/samui_backend/services/storage.py` with StorageService class (upload_image, get_image, delete_image, get_image_url methods)
+- [x] [P1.12] Create `packages/samui-backend/src/samui_backend/schemas.py` with Pydantic models: ImageCreate, ImageResponse, ImageList
+- [x] [P1.13] Create `packages/samui-backend/src/samui_backend/routes/images.py` with POST /images (upload), GET /images (list), GET /images/{id}, DELETE /images/{id}
+- [x] [P1.14] Create `packages/samui-backend/src/samui_backend/main.py` with FastAPI app, lifespan that calls `create_all()` for DB init, include images router, add CORS middleware
+- [x] [P1.15] Create `packages/samui-frontend/src/samui_frontend/__init__.py` and `config.py` with API_URL setting
+- [x] [P1.16] Create `packages/samui-frontend/src/samui_frontend/components/image_gallery.py` with reusable tiled image gallery component
+- [x] [P1.17] Create `packages/samui-frontend/src/samui_frontend/pages/upload.py` with drag-and-drop upload, file selector, and image gallery display
+- [x] [P1.18] Create `packages/samui-frontend/src/samui_frontend/app.py` as Streamlit entry point with page navigation
+- [x] [P1.19] Create `tests/conftest.py` with test database fixture and test client
+- [x] [P1.20] Create `tests/test_api_images.py` with tests for upload, list, and delete endpoints
+- [x] [P1.21] Run tests: `uv run pytest tests/test_api_images.py -v`
 - [ ] [P1.22] Verify full flow manually: `docker compose up`, upload images via UI, confirm images appear in gallery
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/`
-- [ ] Code complexity: Run `uvx ruff check packages/ --select C901,PLR0912,PLR0915`
+- [x] Code quality: Run `uvx ruff check packages/`
+- [x] Code complexity: Run `uvx ruff check packages/ --select C901,PLR0912,PLR0915`
 - [ ] Review: Verify upload page works end-to-end (upload → storage → DB → gallery display)
 
 **Phase 1 Complete:** Infrastructure established with split packages. Users can upload images via drag-and-drop, images are stored in Azurite blob storage with metadata in PostgreSQL (auto-initialized on backend startup), and uploaded images display in a tiled gallery. Frontend container is lightweight (no torch).
