@@ -340,3 +340,11 @@ Each phase ends with validation before proceeding:
 - **Code complexity**: `uvx ruff check packages/ --select C901,PLR0912,PLR0915`
 
 These ensure code quality is maintained across AI-assisted development sessions.
+
+---
+
+## Changelog
+
+| Date | Change | Rationale |
+|------|--------|-----------|
+| 2026-01-08 | Added [P3.0] to convert from uv workspace to isolated packages | Backend requires torch (heavy dependency); isolating packages prevents torch from being installed in frontend's virtual environment |

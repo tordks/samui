@@ -92,6 +92,7 @@
 
 **Tasks:**
 
+- [ ] [P3.0] Convert from uv workspace to isolated packages: remove `[tool.uv.workspace]` and `[tool.uv.sources]` sections from root `pyproject.toml` (keep dev dependencies for shared tooling), then run `uv sync` from each package directory to create independent `.venv` and `uv.lock` files (allows backend to have torch without polluting frontend)
 - [ ] [P3.1] Add `sam3` and `torch` dependencies to `packages/samui-backend/pyproject.toml`
 - [ ] [P3.2] Add ProcessingResult model to `packages/samui-backend/src/samui_backend/db/models.py` (id, image_id FK, mask_blob_path, coco_json_blob_path, processed_at, batch_id)
 - [ ] [P3.3] Create `packages/samui-backend/src/samui_backend/services/sam3_inference.py` with SAM3Service class:
