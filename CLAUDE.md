@@ -57,9 +57,6 @@ uvx ruff check packages/
 
 # Format
 uvx ruff format packages/
-
-# Type check
-uvx mypy packages/
 ```
 
 ### Adding Dependencies
