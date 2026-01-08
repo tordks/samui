@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime
 
 WORKDIR /app
 
@@ -12,9 +12,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY packages/samui-backend/pyproject.toml ./pyproject.toml
 COPY packages/samui-backend/src ./src
 
-# Install dependencies
-RUN uv sync
+# Install dependencies into system Python (reuses torch from base image)
+RUN uv pip install --system -e .
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "samui_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "samui_backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
