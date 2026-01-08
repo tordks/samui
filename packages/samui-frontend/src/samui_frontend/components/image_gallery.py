@@ -1,5 +1,6 @@
 """Reusable tiled image gallery component."""
 
+from collections.abc import Callable
 from typing import Any
 
 import streamlit as st
@@ -10,9 +11,9 @@ from samui_frontend.config import API_URL
 def image_gallery(
     images: list[dict[str, Any]],
     columns: int = 4,
-    on_select: callable | None = None,
+    on_select: Callable[[dict[str, Any]], None] | None = None,
     show_delete: bool = False,
-    on_delete: callable | None = None,
+    on_delete: Callable[[dict[str, Any]], None] | None = None,
 ) -> str | None:
     """Display a tiled gallery of images.
 
