@@ -3,9 +3,25 @@
 from collections.abc import Callable
 from typing import Any
 
+import httpx
 import streamlit as st
 
 from samui_frontend.config import API_URL
+
+
+@st.cache_data(ttl=60)
+def _fetch_image_data(image_id: str) -> bytes | None:
+    """Fetch image data from the backend API.
+
+    Cached to avoid repeated requests for the same image.
+    """
+    try:
+        response = httpx.get(f"{API_URL}/images/{image_id}/data", timeout=10.0)
+        if response.status_code == 200:
+            return response.content
+    except httpx.RequestError:
+        pass
+    return None
 
 
 def image_gallery(
@@ -37,9 +53,12 @@ def image_gallery(
     for idx, image in enumerate(images):
         col = cols[idx % columns]
         with col:
-            # Display image thumbnail
-            image_url = f"{API_URL}/images/{image['id']}/data"
-            st.image(image_url, caption=image["filename"], use_container_width=True)
+            # Fetch and display image (server-side to work with Docker internal URLs)
+            image_data = _fetch_image_data(image["id"])
+            if image_data:
+                st.image(image_data, caption=image["filename"], use_container_width=True)
+            else:
+                st.warning(f"Failed to load: {image['filename']}")
 
             # Show dimensions
             st.caption(f"{image['width']}x{image['height']}")
