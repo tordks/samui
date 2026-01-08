@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import Any
 
 from PIL import Image, ImageDraw
+import streamlit as st
 from streamlit_image_coordinates import streamlit_image_coordinates
 
 # Color palette for bounding boxes (cycle through these)
@@ -73,6 +74,11 @@ def bbox_annotator(
     Returns:
         Dict with x, y, width, height of newly drawn bbox, or None if no new bbox.
     """
+    # Track last processed bbox timestamp to avoid processing the same bbox twice
+    state_key = f"_last_bbox_time_{key}"
+    if state_key not in st.session_state:
+        st.session_state[state_key] = None
+
     # Draw existing bboxes on the image
     annotated_image = _draw_bboxes_on_image(image, annotations)
 
@@ -85,6 +91,13 @@ def bbox_annotator(
 
     # Check if a new rectangle was drawn
     if value and "x1" in value and "x2" in value:
+        # Use unix_time to detect if this is a new drawing event
+        current_time = value.get("unix_time")
+
+        # Skip if we've already processed this exact bbox (same timestamp)
+        if current_time is not None and current_time == st.session_state[state_key]:
+            return None
+
         x1 = value["x1"]
         y1 = value["y1"]
         x2 = value["x2"]
@@ -100,6 +113,9 @@ def bbox_annotator(
 
             width = max_x - min_x
             height = max_y - min_y
+
+            # Mark this bbox as processed
+            st.session_state[state_key] = current_time
 
             bbox = {
                 "x": min_x,
