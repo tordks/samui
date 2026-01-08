@@ -105,7 +105,9 @@ def _render_process_controls(annotated_images: list[dict]) -> None:
             # Auto-refresh while processing
             time.sleep(1)
             st.rerun()
-        elif status and status.get("batch_id"):
+        elif status and status.get("error"):
+            st.error(f"Processing failed: {status.get('error')}")
+        elif status and status.get("batch_id") and status.get("processed_count", 0) > 0:
             st.success(f"Processing complete! {status.get('processed_count')} images processed.")
         elif len(annotated_images) == 0:
             st.info("No annotated images to process. Add annotations first.")

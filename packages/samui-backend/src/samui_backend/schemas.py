@@ -92,6 +92,7 @@ class ProcessStatus(BaseModel):
     total_count: int
     current_image_id: uuid.UUID | None
     current_image_filename: str | None
+    error: str | None
 
 
 class ProcessingResultResponse(BaseModel):

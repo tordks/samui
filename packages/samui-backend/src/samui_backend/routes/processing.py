@@ -32,6 +32,7 @@ _processing_state: dict = {
     "total_count": 0,
     "current_image_id": None,
     "current_image_filename": None,
+    "error": None,
 }
 
 
@@ -196,7 +197,8 @@ def _process_images_background(
             _processing_state["processed_count"] = idx + 1
 
     except Exception as e:
-        logger.error(f"Error in background processing: {e}")
+        logger.exception(f"Error in background processing: {e}")
+        _processing_state["error"] = str(e)
     finally:
         sam3.unload_model()
         db.close()
@@ -268,6 +270,7 @@ def start_processing(
     _processing_state["total_count"] = len(valid_image_ids)
     _processing_state["current_image_id"] = None
     _processing_state["current_image_filename"] = None
+    _processing_state["error"] = None
 
     # Start background task
     background_tasks.add_task(_process_images_background, valid_image_ids, batch_id)
@@ -293,6 +296,7 @@ def get_processing_status() -> dict:
         "total_count": _processing_state["total_count"],
         "current_image_id": _processing_state["current_image_id"],
         "current_image_filename": _processing_state["current_image_filename"],
+        "error": _processing_state["error"],
     }
 
 
