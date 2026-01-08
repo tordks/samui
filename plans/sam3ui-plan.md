@@ -33,6 +33,7 @@ Build a web-based UI for SAM3 image segmentation that allows users to:
 - Video segmentation
 - Cloud deployment (Azure production setup)
 - Live bbox preview while drawing (something like use `streamlit-drawable-canvas` (unmaintained) or `streamlit-image-annotation` instead of `streamlit-image-coordinates` for real-time visual feedback during drag)
+- Bbox editing (current approach is delete and redraw; could add form inputs for x/y/width/height with +/- adjustment buttons in the annotation sidebar, requires `PUT /annotations/{id}` endpoint)
 
 ### Success Criteria
 
