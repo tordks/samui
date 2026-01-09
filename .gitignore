@@ -27,7 +27,10 @@ venv.bak/
 .vscode/
 *.swp
 *.swo
+
+# CLaude Code
 .claude/settings.local.json
+.playwright-mcp
 
 # Jupyter Notebook
 .ipynb_checkpoints
