@@ -99,9 +99,9 @@
 
 **Tasks:**
 
-- [ ] [P3.1] Update `ProcessRequest` schema to include `mode: SegmentationMode` field with default `INSIDE_BOX`
-- [ ] [P3.2] Update `_process_single_image()` to accept mode parameter
-- [ ] [P3.3] Add `_process_single_image_find_all()` function in `processing.py`
+- [x] [P3.1] Update `ProcessRequest` schema to include `mode: SegmentationMode` field with default `INSIDE_BOX`
+- [x] [P3.2] Update `_process_single_image()` to accept mode parameter
+- [x] [P3.3] Add `_process_single_image_find_all()` function in `processing.py`
   - Load image text_prompt from database
   - Load exemplar annotations (POSITIVE_EXEMPLAR, NEGATIVE_EXEMPLAR) for image
   - Convert annotations to (bbox_xywh, is_positive) format
@@ -109,29 +109,29 @@
   - For each discovered box: create Annotation with source=MODEL, prompt_type=SEGMENT
   - Save masks and COCO JSON
   - Create/update ProcessingResult with mode=FIND_ALL
-- [ ] [P3.4] Update `_process_images_background()` to route based on mode
+- [x] [P3.4] Update `_process_images_background()` to route based on mode
   - If mode=INSIDE_BOX: use existing `_process_single_image()`
   - If mode=FIND_ALL: use new `_process_single_image_find_all()`
-- [ ] [P3.5] Update image validation in `start_processing()` based on mode
+- [x] [P3.5] Update image validation in `start_processing()` based on mode
   - INSIDE_BOX: require annotations with prompt_type=SEGMENT
   - FIND_ALL: require text_prompt OR annotations with prompt_type in (POSITIVE_EXEMPLAR, NEGATIVE_EXEMPLAR)
-- [ ] [P3.6] Update `_is_already_processed()` to check mode-specific ProcessingResult
-- [ ] [P3.7] Update mask/export endpoints to accept optional mode parameter
+- [x] [P3.6] Update `_is_already_processed()` to check mode-specific ProcessingResult
+- [x] [P3.7] Update mask/export endpoints to accept optional mode parameter
   - `GET /process/mask/{image_id}?mode=inside_box`
   - Default to INSIDE_BOX for backward compatibility
-- [ ] [P3.8] Create `tests/test_api_processing.py` with mode-aware processing tests
+- [x] [P3.8] Create `tests/test_api_processing.py` with mode-aware processing tests
   - Test inside_box mode (existing behavior)
   - Test find_all mode with text prompt
   - Test find_all mode with exemplar boxes
   - Test validation errors for missing prompts
   - Test ProcessingResult created with correct mode
-- [ ] [P3.9] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P3.9] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/src/samui_backend/routes/processing.py tests/test_api_processing.py`
-- [ ] Code format: Run `uvx ruff format packages/samui-backend/src/samui_backend/routes/processing.py tests/test_api_processing.py --check`
-- [ ] Review: Verify backward compatibility - existing inside_box flow unchanged
+- [x] Code quality: Run `uvx ruff check packages/samui-backend/src/samui_backend/routes/processing.py tests/test_api_processing.py`
+- [x] Code format: Run `uvx ruff format packages/samui-backend/src/samui_backend/routes/processing.py tests/test_api_processing.py --check`
+- [x] Review: Verify backward compatibility - existing inside_box flow unchanged
 
 **Phase 3 Complete:** Processing API supports both modes. Find-all creates annotations from discoveries. Mode-specific results tracked independently.
 

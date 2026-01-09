@@ -11,8 +11,16 @@ from numpy.typing import NDArray
 from PIL import Image as PILImage
 from sqlalchemy.orm import Session
 
-from samui_backend.db.database import get_db, SessionLocal
-from samui_backend.db.models import Annotation, Image, ProcessingResult, ProcessingStatus
+from samui_backend.db.database import SessionLocal, get_db
+from samui_backend.db.models import (
+    Annotation,
+    AnnotationSource,
+    Image,
+    ProcessingResult,
+    ProcessingStatus,
+    PromptType,
+    SegmentationMode,
+)
 from samui_backend.schemas import ProcessRequest, ProcessResponse, ProcessStatus
 from samui_backend.services import SAM3Service, StorageService, generate_coco_json
 
@@ -52,9 +60,15 @@ def get_sam3_service() -> SAM3Service:
     return _sam3_service
 
 
-def _save_mask_to_storage(storage: StorageService, masks: NDArray[np.uint8], image_id: uuid.UUID) -> str:
+def _save_mask_to_storage(
+    storage: StorageService,
+    masks: NDArray[np.uint8],
+    image_id: uuid.UUID,
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
+) -> str:
     """Save combined mask image to storage."""
-    mask_blob_path = f"masks/{image_id}.png"
+    mode_suffix = f"_{mode.value}" if mode != SegmentationMode.INSIDE_BOX else ""
+    mask_blob_path = f"masks/{image_id}{mode_suffix}.png"
     combined_mask = np.zeros((masks.shape[1], masks.shape[2]), dtype=np.uint8)
     for mask in masks:
         combined_mask = np.maximum(combined_mask, mask)
@@ -74,9 +88,11 @@ def _save_coco_to_storage(
     image: Image,
     bboxes: list[tuple[int, int, int, int]],
     masks: NDArray[np.uint8],
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
 ) -> str:
     """Generate and save COCO JSON to storage."""
-    coco_blob_path = f"coco/{image.id}.json"
+    mode_suffix = f"_{mode.value}" if mode != SegmentationMode.INSIDE_BOX else ""
+    coco_blob_path = f"coco/{image.id}{mode_suffix}.json"
     coco_json = generate_coco_json(
         image_id=image.id,
         filename=image.filename,
@@ -98,8 +114,9 @@ def _process_single_image(
     image: Image,
     batch_id: uuid.UUID,
     existing_result: ProcessingResult | None,
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
 ) -> bool:
-    """Process a single image through SAM3 inference.
+    """Process a single image through SAM3 inference (inside-box mode).
 
     Returns:
         True if processed successfully, False otherwise.
@@ -107,9 +124,12 @@ def _process_single_image(
     image_data = storage.get_image(image.blob_path)
     pil_image = PILImage.open(BytesIO(image_data)).convert("RGB")
 
-    annotations = db.query(Annotation).filter(Annotation.image_id == image.id).all()
+    # For inside-box mode, only use SEGMENT annotations
+    annotations = (
+        db.query(Annotation).filter(Annotation.image_id == image.id, Annotation.prompt_type == PromptType.SEGMENT).all()
+    )
     if not annotations:
-        logger.warning(f"No annotations for image {image.id}, skipping")
+        logger.warning(f"No segment annotations for image {image.id}, skipping")
         image.processing_status = ProcessingStatus.ANNOTATED
         db.commit()
         return False
@@ -117,8 +137,8 @@ def _process_single_image(
     bboxes = [(ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height) for ann in annotations]
 
     masks = sam3.process_image(pil_image, bboxes)
-    mask_blob_path = _save_mask_to_storage(storage, masks, image.id)
-    coco_blob_path = _save_coco_to_storage(storage, image, bboxes, masks)
+    mask_blob_path = _save_mask_to_storage(storage, masks, image.id, mode)
+    coco_blob_path = _save_coco_to_storage(storage, image, bboxes, masks, mode)
 
     if existing_result:
         existing_result.mask_blob_path = mask_blob_path
@@ -127,6 +147,7 @@ def _process_single_image(
     else:
         result = ProcessingResult(
             image_id=image.id,
+            mode=mode,
             mask_blob_path=mask_blob_path,
             coco_json_blob_path=coco_blob_path,
             batch_id=batch_id,
@@ -135,13 +156,117 @@ def _process_single_image(
 
     image.processing_status = ProcessingStatus.PROCESSED
     db.commit()
-    logger.info(f"Processed image {image.id} ({image.filename})")
+    logger.info(f"Processed image {image.id} ({image.filename}) with mode {mode.value}")
+    return True
+
+
+def _process_single_image_find_all(
+    db: Session,
+    storage: StorageService,
+    sam3: SAM3Service,
+    image: Image,
+    batch_id: uuid.UUID,
+    existing_result: ProcessingResult | None,
+) -> bool:
+    """Process a single image through SAM3 find-all inference.
+
+    Uses text prompts and/or exemplar boxes to discover all matching objects.
+    Creates new annotations for discovered objects.
+
+    Returns:
+        True if processed successfully, False otherwise.
+    """
+    # Load text prompt from image
+    text_prompt = image.text_prompt
+
+    # Load exemplar annotations (positive and negative)
+    exemplar_annotations = (
+        db.query(Annotation)
+        .filter(
+            Annotation.image_id == image.id,
+            Annotation.prompt_type.in_([PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]),
+        )
+        .all()
+    )
+
+    # Validate: need text prompt or exemplars
+    if not text_prompt and not exemplar_annotations:
+        logger.warning(f"No text prompt or exemplars for image {image.id} in find-all mode, skipping")
+        image.processing_status = ProcessingStatus.ANNOTATED
+        db.commit()
+        return False
+
+    # Load image data
+    image_data = storage.get_image(image.blob_path)
+    pil_image = PILImage.open(BytesIO(image_data)).convert("RGB")
+
+    # Convert exemplar annotations to (bbox_xywh, is_positive) format
+    exemplar_boxes = None
+    if exemplar_annotations:
+        exemplar_boxes = [
+            (
+                (ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height),
+                ann.prompt_type == PromptType.POSITIVE_EXEMPLAR,
+            )
+            for ann in exemplar_annotations
+        ]
+
+    # Run find-all inference
+    find_result = sam3.process_image_find_all(pil_image, text_prompt, exemplar_boxes)
+
+    # Create annotations for discovered objects
+    for x, y, w, h in find_result.bboxes:
+        db.add(
+            Annotation(
+                image_id=image.id,
+                bbox_x=x,
+                bbox_y=y,
+                bbox_width=w,
+                bbox_height=h,
+                prompt_type=PromptType.SEGMENT,
+                source=AnnotationSource.MODEL,
+            )
+        )
+
+    # Save masks and COCO JSON
+    mode = SegmentationMode.FIND_ALL
+    if find_result.masks.size > 0:
+        mask_blob_path = _save_mask_to_storage(storage, find_result.masks, image.id, mode)
+        coco_blob_path = _save_coco_to_storage(storage, image, find_result.bboxes, find_result.masks, mode)
+    else:
+        # No discoveries - save empty results
+        empty_masks = np.zeros((0, pil_image.height, pil_image.width), dtype=np.uint8)
+        mask_blob_path = _save_mask_to_storage(storage, empty_masks, image.id, mode)
+        coco_blob_path = _save_coco_to_storage(storage, image, [], empty_masks, mode)
+
+    # Update or create ProcessingResult
+    if existing_result:
+        existing_result.mask_blob_path = mask_blob_path
+        existing_result.coco_json_blob_path = coco_blob_path
+        existing_result.batch_id = batch_id
+    else:
+        result = ProcessingResult(
+            image_id=image.id,
+            mode=mode,
+            mask_blob_path=mask_blob_path,
+            coco_json_blob_path=coco_blob_path,
+            batch_id=batch_id,
+        )
+        db.add(result)
+
+    image.processing_status = ProcessingStatus.PROCESSED
+    db.commit()
+    logger.info(
+        f"Processed image {image.id} ({image.filename}) with find-all mode, "
+        f"discovered {len(find_result.bboxes)} objects"
+    )
     return True
 
 
 def _process_images_background(
     image_ids: list[uuid.UUID],
     batch_id: uuid.UUID,
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
 ) -> None:
     """Background task to process images through SAM3."""
     global _processing_state
@@ -163,10 +288,15 @@ def _process_images_background(
             _processing_state["current_image_id"] = image_id
             _processing_state["current_image_filename"] = image.filename
 
-            existing_result = db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id).first()
+            # Check for existing result with the same mode
+            existing_result = (
+                db.query(ProcessingResult)
+                .filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode)
+                .first()
+            )
 
-            if _is_already_processed(image, existing_result):
-                logger.info(f"Image {image_id} already processed, skipping")
+            if _is_already_processed(existing_result, mode):
+                logger.info(f"Image {image_id} already processed with mode {mode.value}, skipping")
                 _processing_state["processed_count"] = idx + 1
                 continue
 
@@ -174,9 +304,13 @@ def _process_images_background(
             db.commit()
 
             try:
-                _process_single_image(db, storage, sam3, image, batch_id, existing_result)
+                # Route to appropriate processing function based on mode
+                if mode == SegmentationMode.INSIDE_BOX:
+                    _process_single_image(db, storage, sam3, image, batch_id, existing_result, mode)
+                else:
+                    _process_single_image_find_all(db, storage, sam3, image, batch_id, existing_result)
             except Exception as e:
-                logger.error(f"Error processing image {image_id}: {e}")
+                logger.error(f"Error processing image {image_id} with mode {mode.value}: {e}")
                 db.rollback()
 
             _processing_state["processed_count"] = idx + 1
@@ -192,13 +326,12 @@ def _process_images_background(
         _processing_state["current_image_filename"] = None
 
 
-def _is_already_processed(image: Image, existing_result: ProcessingResult | None) -> bool:
-    """Check if image has already been processed."""
-    return (
-        image.processing_status == ProcessingStatus.PROCESSED
-        and existing_result is not None
-        and existing_result.mask_blob_path is not None
-    )
+def _is_already_processed(
+    existing_result: ProcessingResult | None,
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
+) -> bool:
+    """Check if image has already been processed for the given mode."""
+    return existing_result is not None and existing_result.mode == mode and existing_result.mask_blob_path is not None
 
 
 @router.post("", response_model=ProcessResponse)
@@ -229,21 +362,44 @@ def start_processing(
             detail="Processing already in progress. Wait for it to complete.",
         )
 
-    # Validate image_ids exist and have annotations
+    # Validate image_ids exist and have appropriate prompts for the mode
+    mode = request.mode
     valid_image_ids = []
+
     for image_id in request.image_ids:
         image = db.query(Image).filter(Image.id == image_id).first()
-        if image:
-            # Check if image has annotations
-            annotation_count = db.query(Annotation).filter(Annotation.image_id == image_id).count()
-            if annotation_count > 0:
+        if not image:
+            continue
+
+        if mode == SegmentationMode.INSIDE_BOX:
+            # Inside-box mode requires SEGMENT annotations
+            segment_count = (
+                db.query(Annotation)
+                .filter(Annotation.image_id == image_id, Annotation.prompt_type == PromptType.SEGMENT)
+                .count()
+            )
+            if segment_count > 0:
+                valid_image_ids.append(image_id)
+        else:
+            # Find-all mode requires text_prompt OR exemplar annotations
+            has_text = image.text_prompt is not None and image.text_prompt.strip() != ""
+            exemplar_count = (
+                db.query(Annotation)
+                .filter(
+                    Annotation.image_id == image_id,
+                    Annotation.prompt_type.in_([PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]),
+                )
+                .count()
+            )
+            if has_text or exemplar_count > 0:
                 valid_image_ids.append(image_id)
 
     if not valid_image_ids:
-        raise HTTPException(
-            status_code=400,
-            detail="No valid images with annotations to process.",
-        )
+        if mode == SegmentationMode.INSIDE_BOX:
+            detail = "No valid images with segment annotations to process."
+        else:
+            detail = "No valid images with text prompts or exemplar boxes to process."
+        raise HTTPException(status_code=400, detail=detail)
 
     # Generate batch ID and initialize state
     batch_id = uuid.uuid4()
@@ -255,8 +411,8 @@ def start_processing(
     _processing_state["current_image_filename"] = None
     _processing_state["error"] = None
 
-    # Start background task
-    background_tasks.add_task(_process_images_background, valid_image_ids, batch_id)
+    # Start background task with mode
+    background_tasks.add_task(_process_images_background, valid_image_ids, batch_id, mode)
 
     return {
         "batch_id": batch_id,
@@ -286,6 +442,7 @@ def get_processing_status() -> dict:
 @router.get("/mask/{image_id}")
 def get_mask(
     image_id: uuid.UUID,
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
     db: Session = Depends(get_db),
     storage: StorageService = Depends(get_storage_service),
 ):
@@ -293,6 +450,7 @@ def get_mask(
 
     Args:
         image_id: UUID of the image.
+        mode: Segmentation mode (defaults to INSIDE_BOX for backward compatibility).
         db: Database session.
         storage: Storage service.
 
@@ -304,14 +462,16 @@ def get_mask(
     """
     from fastapi.responses import Response
 
-    result = db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id).first()
+    result = (
+        db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode).first()
+    )
     if not result or not result.mask_blob_path:
-        raise HTTPException(status_code=404, detail="Mask not found for this image")
+        raise HTTPException(status_code=404, detail=f"Mask not found for this image with mode {mode.value}")
 
     try:
         mask_bytes = storage.get_image(result.mask_blob_path)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve mask: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve mask: {e}") from e
 
     return Response(content=mask_bytes, media_type="image/png")
 
@@ -319,6 +479,7 @@ def get_mask(
 @router.get("/export/{image_id}")
 def export_coco_json(
     image_id: uuid.UUID,
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
     db: Session = Depends(get_db),
     storage: StorageService = Depends(get_storage_service),
 ) -> dict:
@@ -326,6 +487,7 @@ def export_coco_json(
 
     Args:
         image_id: UUID of the image to export.
+        mode: Segmentation mode (defaults to INSIDE_BOX for backward compatibility).
         db: Database session.
         storage: Storage service.
 
@@ -342,16 +504,18 @@ def export_coco_json(
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    result = db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id).first()
+    result = (
+        db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode).first()
+    )
     if not result:
-        raise HTTPException(status_code=404, detail="Image has not been processed yet")
+        raise HTTPException(status_code=404, detail=f"Image has not been processed yet with mode {mode.value}")
 
     # Fetch COCO JSON from storage
     try:
         coco_bytes = storage.get_image(result.coco_json_blob_path)
         coco_json = json.loads(coco_bytes.decode("utf-8"))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve COCO JSON: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve COCO JSON: {e}") from e
 
     # Return as downloadable JSON with filename
     return JSONResponse(
