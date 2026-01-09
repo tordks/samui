@@ -88,6 +88,7 @@ def image_gallery(
     on_select: Callable[[dict[str, Any]], None] | None = None,
     on_delete: Callable[[dict[str, Any]], None] | None = None,
     image_renderer: Callable[[dict[str, Any], bytes], Image.Image] | None = None,
+    label_callback: Callable[[dict[str, Any]], str | None] | None = None,
 ) -> int | None:
     """Display a tiled gallery of images.
 
@@ -98,6 +99,8 @@ def image_gallery(
         on_delete: Callback when delete is clicked (receives image dict).
         image_renderer: Optional callback to render custom image (e.g., with overlays).
             Receives (image_meta, raw_bytes) and returns PIL Image.
+        label_callback: Optional callback to get a label to display above each image.
+            Receives image dict and returns label string or None.
 
     Returns:
         Selected image index if any, else None.
@@ -114,6 +117,12 @@ def image_gallery(
     for idx, image in enumerate(display_images):
         col = cols[idx % config.columns]
         with col:
+            # Show label above image if callback provided
+            if label_callback:
+                label = label_callback(image)
+                if label:
+                    st.caption(label)
+
             image_data = _fetch_image_data(image["id"])
             if image_data:
                 _render_image(image, image_data, image_renderer)

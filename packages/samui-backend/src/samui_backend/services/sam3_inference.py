@@ -213,7 +213,7 @@ class SAM3Service:
                 coco_image_id=1,
                 original_image_id=1,
                 original_category_id=1,
-                original_size=[w, h],
+                original_size=[h, w],  # height, width order to match SAMImage.size
                 object_id=0,
                 frame_index=0,
             ),
@@ -286,25 +286,36 @@ class SAM3Service:
             )
 
         result_data = results[1]
-        masks_list = result_data.get("masks", [])
+        masks_data = result_data.get("masks", [])
         scores_tensor = result_data.get("scores", torch.tensor([]))
         boxes_tensor = result_data.get("boxes", torch.tensor([]))
 
         # Convert masks to numpy binary format
-        if masks_list:
-            # Masks are returned as list of tensors
-            masks = torch.stack(masks_list).cpu().numpy()
-            masks = (masks > 0).astype(np.uint8) * 255
+        # masks_data can be a list of tensors or a single stacked tensor
+        if isinstance(masks_data, torch.Tensor):
+            if masks_data.numel() > 0:
+                masks = masks_data.cpu().numpy()
+            else:
+                masks = np.array([], dtype=np.uint8).reshape(0, image.height, image.width)
+        elif masks_data:
+            # List of tensors
+            masks = torch.stack(masks_data).cpu().numpy()
         else:
             masks = np.array([], dtype=np.uint8).reshape(0, image.height, image.width)
 
-        # Convert scores to numpy
-        scores = scores_tensor.cpu().numpy().astype(np.float32)
+        # Squeeze extra dimensions - ensure shape is (num_masks, H, W)
+        if masks.size > 0:
+            while masks.ndim > 3:
+                masks = masks.squeeze(1)
+            masks = (masks > 0).astype(np.uint8) * 255
+
+        # Convert scores to numpy (convert from bfloat16 to float32 first)
+        scores = scores_tensor.float().cpu().numpy().astype(np.float32)
 
         # Convert boxes from xyxy to xywh format
         bboxes = []
         if boxes_tensor.numel() > 0:
-            boxes_np = boxes_tensor.cpu().numpy()
+            boxes_np = boxes_tensor.float().cpu().numpy()
             for x1, y1, x2, y2 in boxes_np:
                 bboxes.append((int(x1), int(y1), int(x2 - x1), int(y2 - y1)))
 

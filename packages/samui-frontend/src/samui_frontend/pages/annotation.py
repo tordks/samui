@@ -153,6 +153,28 @@ def _update_image_text_prompt(image_id: str, text_prompt: str) -> bool:
         return False
 
 
+def _clear_image_text_prompt(image_id: str) -> bool:
+    """Clear the text prompt for an image."""
+    try:
+        response = httpx.patch(
+            f"{API_URL}/images/{image_id}",
+            json={"text_prompt": None},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return True
+    except httpx.HTTPError:
+        return False
+
+
+def _get_text_prompt_label(image: dict) -> str | None:
+    """Return text prompt label for gallery display."""
+    text_prompt = image.get("text_prompt")
+    if text_prompt:
+        return f"text prompt: {text_prompt}"
+    return None
+
+
 def _create_bbox_overlay(image: dict, image_data: bytes) -> Image.Image:
     """Create overlay with bboxes for gallery display."""
     pil_image = Image.open(BytesIO(image_data)).convert("RGBA")
@@ -251,6 +273,10 @@ def _render_thumbnail_gallery(images: list[dict]) -> None:
         st.session_state.selected_image_index = idx
         st.rerun()
 
+    # Show text prompt label in find-all mode
+    mode = st.session_state.get("segmentation_mode", SegmentationMode.INSIDE_BOX)
+    label_cb = _get_text_prompt_label if mode == SegmentationMode.FIND_ALL else None
+
     image_gallery(
         images,
         config=GalleryConfig(
@@ -262,6 +288,7 @@ def _render_thumbnail_gallery(images: list[dict]) -> None:
         ),
         on_select=handle_select,
         image_renderer=_create_bbox_overlay,
+        label_callback=label_cb,
     )
 
 
@@ -339,6 +366,19 @@ def _render_find_all_controls(current_image: dict) -> PromptType:
 
     Returns the selected exemplar type for creating new annotations.
     """
+    # Display current text prompt with delete button
+    current_prompt = current_image.get("text_prompt") or ""
+    if current_prompt:
+        prompt_col, delete_col = st.columns([4, 1])
+        with prompt_col:
+            st.info(f"**Text prompt:** {current_prompt}")
+        with delete_col:
+            if st.button("X", key=f"clear_prompt_{current_image['id']}", help="Clear text prompt"):
+                if _clear_image_text_prompt(current_image["id"]):
+                    st.rerun()
+                else:
+                    st.error("Failed to clear")
+
     col1, col2 = st.columns([2, 1])
 
     with col1:
@@ -356,7 +396,7 @@ def _render_find_all_controls(current_image: dict) -> PromptType:
         # Save if changed
         if new_prompt != current_prompt:
             if _update_image_text_prompt(current_image["id"], new_prompt):
-                st.success("Text prompt saved!", icon="✅")
+                st.rerun()
             else:
                 st.error("Failed to save text prompt")
 

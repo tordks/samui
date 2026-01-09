@@ -87,7 +87,7 @@ def update_image(
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    if update.text_prompt is not None:
+    if "text_prompt" in update.model_fields_set:
         image.text_prompt = update.text_prompt
 
     db.commit()

@@ -27,6 +27,13 @@ class PromptType(StrEnum):
     NEGATIVE_EXEMPLAR = "negative_exemplar"
 
 
+class AnnotationSource(StrEnum):
+    """Source of an annotation."""
+
+    USER = "user"
+    MODEL = "model"
+
+
 # Color palette for bounding boxes (matches bbox_annotator)
 BBOX_COLORS = [
     "#ff4b4b",  # red
@@ -77,7 +84,11 @@ def _fetch_mask_data(image_id: str, mode: SegmentationMode | None = None) -> byt
     return None
 
 
-def _fetch_annotations(image_id: str, mode: SegmentationMode | None = None) -> list[dict]:
+def _fetch_annotations(
+    image_id: str,
+    mode: SegmentationMode | None = None,
+    for_display: bool = False,
+) -> list[dict]:
     """Fetch annotations for an image, optionally filtered by segmentation mode.
 
     Args:
@@ -85,6 +96,9 @@ def _fetch_annotations(image_id: str, mode: SegmentationMode | None = None) -> l
         mode: If provided, filter annotations by mode:
             - INSIDE_BOX: only SEGMENT prompt_type
             - FIND_ALL: both POSITIVE_EXEMPLAR and NEGATIVE_EXEMPLAR prompt_types
+                (or SEGMENT with source=MODEL when for_display=True)
+        for_display: If True in FIND_ALL mode, fetch model-generated results
+            instead of user-provided exemplars.
     """
     try:
         if mode is None:
@@ -101,7 +115,21 @@ def _fetch_annotations(image_id: str, mode: SegmentationMode | None = None) -> l
             response.raise_for_status()
             return response.json().get("annotations", [])
 
-        # FIND_ALL mode: fetch both positive and negative exemplars
+        # FIND_ALL mode
+        if for_display:
+            # Fetch model-generated segment annotations (the discovered objects)
+            response = httpx.get(
+                f"{API_URL}/annotations/{image_id}",
+                params={
+                    "prompt_type": PromptType.SEGMENT.value,
+                    "source": AnnotationSource.MODEL.value,
+                },
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            return response.json().get("annotations", [])
+
+        # Fetch user-provided exemplars (positive and negative)
         annotations = []
         for pt in [PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]:
             response = httpx.get(
@@ -138,6 +166,14 @@ def _get_annotation_label(annotation: dict, index: int, mode: SegmentationMode) 
     return f"Box {index + 1}"
 
 
+def _get_text_prompt_label(image: dict) -> str | None:
+    """Return text prompt label for gallery display."""
+    text_prompt = image.get("text_prompt")
+    if text_prompt:
+        return f"text prompt: {text_prompt}"
+    return None
+
+
 def _create_overlay_image(
     image_data: bytes,
     mask_data: bytes | None,
@@ -157,9 +193,21 @@ def _create_overlay_image(
     """
     # Load the original image
     image = Image.open(io.BytesIO(image_data)).convert("RGBA")
-    draw = ImageDraw.Draw(image)
 
-    # Draw bounding boxes
+    # Overlay mask first (so bboxes appear on top)
+    if mask_data:
+        mask = Image.open(io.BytesIO(mask_data)).convert("L")
+
+        # Resize mask to match image if needed
+        if mask.size != image.size:
+            mask = mask.resize(image.size, Image.NEAREST)
+
+        # Where mask is white (255), overlay semi-transparent green
+        mask_rgba = Image.new("RGBA", image.size, (0, 255, 0, 100))
+        image = Image.composite(mask_rgba, image, mask)
+
+    # Draw bounding boxes on top
+    draw = ImageDraw.Draw(image)
     for idx, ann in enumerate(annotations):
         color = _get_annotation_color(ann, idx)
         x1 = ann["bbox_x"]
@@ -176,18 +224,6 @@ def _create_overlay_image(
         draw.rectangle(label_bbox, fill=color)
         draw.text((x1, y1 - 20), label, fill="white")
 
-    # Overlay mask if available
-    if mask_data:
-        mask = Image.open(io.BytesIO(mask_data)).convert("L")
-
-        # Resize mask to match image if needed
-        if mask.size != image.size:
-            mask = mask.resize(image.size, Image.NEAREST)
-
-        # Where mask is white (255), overlay semi-transparent green
-        mask_rgba = Image.new("RGBA", image.size, (0, 255, 0, 100))
-        image = Image.composite(mask_rgba, image, mask)
-
     return image.convert("RGB")
 
 
@@ -198,7 +234,7 @@ def _create_gallery_overlay(image: dict, image_data: bytes) -> Image.Image:
     and raw image for pending. Uses current segmentation mode from session state.
     """
     mode = st.session_state.get("segmentation_mode", SegmentationMode.INSIDE_BOX)
-    annotations = _fetch_annotations(image["id"], mode)
+    annotations = _fetch_annotations(image["id"], mode, for_display=True)
 
     # Check if image has been processed for this mode
     # For now, we only show mask if we have annotations for the mode
@@ -463,7 +499,9 @@ def _render_processed_gallery(images: list[dict], mode: SegmentationMode) -> Non
         st.session_state.selected_processed_index = idx
         st.rerun()
 
-    # Show badge info for each image under the gallery
+    # Show text prompt label above thumbnails in find-all mode
+    label_cb = _get_text_prompt_label if mode == SegmentationMode.FIND_ALL else None
+
     image_gallery(
         images,
         config=GalleryConfig(
@@ -475,6 +513,7 @@ def _render_processed_gallery(images: list[dict], mode: SegmentationMode) -> Non
         ),
         on_select=handle_select,
         image_renderer=_create_gallery_overlay,
+        label_callback=label_cb,
     )
 
     # Show annotation summary for selected image
