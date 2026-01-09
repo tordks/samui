@@ -3,7 +3,7 @@
 import httpx
 import streamlit as st
 
-from samui_frontend.components.image_gallery import image_gallery
+from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
 from samui_frontend.config import API_URL
 
 
@@ -19,27 +19,26 @@ def render() -> None:
     )
 
     # Upload button
-    if uploaded_files:
-        if st.button("Upload Selected Images", type="primary"):
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+    if uploaded_files and st.button("Upload Selected Images", type="primary"):
+        progress_bar = st.progress(0)
+        status_text = st.empty()
 
-            for idx, uploaded_file in enumerate(uploaded_files):
-                status_text.text(f"Uploading {uploaded_file.name}...")
+        for idx, uploaded_file in enumerate(uploaded_files):
+            status_text.text(f"Uploading {uploaded_file.name}...")
 
-                try:
-                    files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-                    response = httpx.post(f"{API_URL}/images", files=files, timeout=30.0)
-                    response.raise_for_status()
-                except httpx.HTTPError as e:
-                    st.error(f"Failed to upload {uploaded_file.name}: {e}")
-                    continue
+            try:
+                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+                response = httpx.post(f"{API_URL}/images", files=files, timeout=30.0)
+                response.raise_for_status()
+            except httpx.HTTPError as e:
+                st.error(f"Failed to upload {uploaded_file.name}: {e}")
+                continue
 
-                progress_bar.progress((idx + 1) / len(uploaded_files))
+            progress_bar.progress((idx + 1) / len(uploaded_files))
 
-            status_text.text("Upload complete!")
-            st.success(f"Successfully uploaded {len(uploaded_files)} image(s)")
-            st.rerun()
+        status_text.text("Upload complete!")
+        st.success(f"Successfully uploaded {len(uploaded_files)} image(s)")
+        st.rerun()
 
     st.divider()
 
@@ -66,4 +65,8 @@ def render() -> None:
         except httpx.HTTPError as e:
             st.error(f"Failed to delete image: {e}")
 
-    image_gallery(images, columns=4, show_delete=True, on_delete=handle_delete)
+    image_gallery(
+        images,
+        config=GalleryConfig(columns=4, show_delete=True),
+        on_delete=handle_delete,
+    )

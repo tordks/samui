@@ -7,6 +7,7 @@ import httpx
 import streamlit as st
 from PIL import Image, ImageDraw
 
+from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
 from samui_frontend.config import API_URL
 
 # Color palette for bounding boxes (matches bbox_annotator)
@@ -114,6 +115,18 @@ def _create_overlay_image(
     return image.convert("RGB")
 
 
+def _create_gallery_overlay(image: dict, image_data: bytes) -> Image.Image:
+    """Create overlay image for gallery display.
+
+    Shows bbox+segmentation for processed images, just bbox for annotated,
+    and raw image for pending.
+    """
+    status = image.get("processing_status")
+    annotations = _fetch_annotations(image["id"])
+    mask_data = _fetch_mask_data(image["id"]) if status == "processed" else None
+    return _create_overlay_image(image_data, mask_data, annotations)
+
+
 def _start_processing(image_ids: list[str]) -> dict | None:
     """Start processing for given image IDs."""
     try:
@@ -149,11 +162,63 @@ def _download_coco_json(image_id: str) -> dict | None:
         return None
 
 
-def _render_process_controls(annotated_images: list[dict]) -> None:
-    """Render the process button and progress indicator."""
+def _download_all_coco_json(processed_images: list[dict]) -> dict | None:
+    """Download combined COCO JSON for all processed images.
+
+    Fetches individual COCO data and combines into single file with:
+    - Combined images list
+    - Combined annotations list (with updated IDs to avoid conflicts)
+    - Single categories list
+    """
+    if not processed_images:
+        return None
+
+    combined = {
+        "images": [],
+        "annotations": [],
+        "categories": [],
+    }
+    categories_seen = set()
+    annotation_id_offset = 0
+
+    for img in processed_images:
+        coco_data = _download_coco_json(img["id"])
+        if not coco_data:
+            continue
+
+        # Add images
+        combined["images"].extend(coco_data.get("images", []))
+
+        # Add annotations with offset IDs
+        for ann in coco_data.get("annotations", []):
+            ann_copy = ann.copy()
+            ann_copy["id"] = ann_copy["id"] + annotation_id_offset
+            combined["annotations"].append(ann_copy)
+
+        # Track max annotation ID for offset
+        if coco_data.get("annotations"):
+            max_id = max(a["id"] for a in coco_data["annotations"])
+            annotation_id_offset += max_id + 1
+
+        # Add unique categories
+        for cat in coco_data.get("categories", []):
+            if cat["id"] not in categories_seen:
+                categories_seen.add(cat["id"])
+                combined["categories"].append(cat)
+
+    return combined if combined["images"] else None
+
+
+def _render_process_controls(
+    annotated_images: list[dict],
+    processed_images: list[dict],
+) -> None:
+    """Render the process button, download button, and progress indicator."""
+    import json
+
     st.subheader("Processing Controls")
 
-    col1, col2 = st.columns([1, 3])
+    col1, col2, col3 = st.columns([1, 1, 2])
 
     with col1:
         process_disabled = len(annotated_images) == 0
@@ -170,6 +235,19 @@ def _render_process_controls(annotated_images: list[dict]) -> None:
                 st.rerun()
 
     with col2:
+        if processed_images:
+            coco_data = _download_all_coco_json(processed_images)
+            if coco_data:
+                st.download_button(
+                    "Download All COCO",
+                    data=json.dumps(coco_data, indent=2),
+                    file_name="coco_annotations.json",
+                    mime="application/json",
+                )
+        else:
+            st.button("Download All COCO", disabled=True)
+
+    with col3:
         status = _get_processing_status()
         if status and status.get("is_running"):
             processed = status.get("processed_count", 0)
@@ -192,123 +270,36 @@ def _render_process_controls(annotated_images: list[dict]) -> None:
             st.info(f"{len(annotated_images)} images ready for processing.")
 
 
-def _render_result_viewer(processed_images: list[dict]) -> None:
-    """Render the result viewer with image and mask overlay."""
-    if not processed_images:
-        st.info("No processed images yet.")
+def _render_processed_gallery(images: list[dict]) -> None:
+    """Render the gallery of all images with overlays."""
+    st.subheader(f"Images ({len(images)})")
+
+    if not images:
         return
 
-    # Get selected processed image
-    if "selected_processed_index" not in st.session_state:
-        st.session_state.selected_processed_index = 0
+    def handle_select(image: dict) -> None:
+        idx = next(i for i, img in enumerate(images) if img["id"] == image["id"])
+        st.session_state.selected_processed_index = idx
+        st.rerun()
 
-    if st.session_state.selected_processed_index >= len(processed_images):
-        st.session_state.selected_processed_index = 0
-
-    current_image = processed_images[st.session_state.selected_processed_index]
-
-    # Header with filename and download button
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.subheader(current_image["filename"])
-    with col2:
-        coco_data = _download_coco_json(current_image["id"])
-        if coco_data:
-            import json
-
-            st.download_button(
-                "Download COCO JSON",
-                data=json.dumps(coco_data, indent=2),
-                file_name=f"{current_image['filename'].rsplit('.', 1)[0]}_coco.json",
-                mime="application/json",
-            )
-
-    # Display the image with overlays
-    image_data = _fetch_image_data(current_image["id"])
-    if image_data:
-        mask_data = _fetch_mask_data(current_image["id"])
-        annotations = _fetch_annotations(current_image["id"])
-        overlay_image = _create_overlay_image(image_data, mask_data, annotations)
-        st.image(overlay_image, use_container_width=True)
-    else:
-        st.error("Failed to load image")
-
-
-def _render_navigation_controls(processed_images: list[dict]) -> None:
-    """Render previous/next navigation buttons."""
-    if len(processed_images) <= 1:
-        return
-
-    st.divider()
-    nav_cols = st.columns([1, 3, 1])
-
-    with nav_cols[0]:
-        if st.button(
-            "Previous", disabled=st.session_state.selected_processed_index == 0
-        ):
-            st.session_state.selected_processed_index -= 1
-            st.rerun()
-
-    with nav_cols[1]:
-        st.caption(
-            f"Image {st.session_state.selected_processed_index + 1} of {len(processed_images)}"
-        )
-
-    with nav_cols[2]:
-        if st.button(
-            "Next",
-            disabled=st.session_state.selected_processed_index >= len(processed_images) - 1,
-        ):
-            st.session_state.selected_processed_index += 1
-            st.rerun()
-
-
-def _render_processed_gallery(processed_images: list[dict]) -> None:
-    """Render the gallery of processed images."""
-    st.subheader(f"Processed Images ({len(processed_images)})")
-
-    if not processed_images:
-        return
-
-    num_cols = min(len(processed_images), 4)
-    cols = st.columns(num_cols)
-
-    for idx, img in enumerate(processed_images[:12]):
-        with cols[idx % num_cols]:
-            is_selected = idx == st.session_state.get("selected_processed_index", 0)
-            if st.button(
-                "Selected" if is_selected else "Select",
-                key=f"proc_{img['id']}",
-                disabled=is_selected,
-            ):
-                st.session_state.selected_processed_index = idx
-                st.rerun()
-
-            thumb_data = _fetch_image_data(img["id"])
-            if thumb_data:
-                st.image(thumb_data, use_container_width=True)
-            st.caption(img["filename"])
-
-
-def _get_status_color(status: str) -> str:
-    """Get color for status badge."""
-    colors = {
-        "pending": "#3d3d4d",
-        "annotated": "#1e40af",
-        "processing": "#b45309",
-        "processed": "#166534",
-    }
-    return colors.get(status, "#3d3d4d")
+    image_gallery(
+        images,
+        config=GalleryConfig(
+            columns=4,
+            max_images=12,
+            show_dimensions=False,
+            key_prefix="processed_",
+            selected_index=st.session_state.get("selected_processed_index", 0),
+        ),
+        on_select=handle_select,
+        image_renderer=_create_gallery_overlay,
+    )
 
 
 def render() -> None:
     """Render the processing page."""
     st.header("Process Images")
     st.caption("Run SAM3 inference on annotated images")
-
-    # Initialize session state
-    if "selected_processed_index" not in st.session_state:
-        st.session_state.selected_processed_index = 0
 
     # Fetch all images
     images = _fetch_images()
@@ -322,27 +313,9 @@ def render() -> None:
     ]
 
     # Render processing controls
-    _render_process_controls(annotated_images)
+    _render_process_controls(annotated_images, processed_images)
 
     st.divider()
 
-    # Layout: Result viewer on left, gallery on right
-    viewer_col, gallery_col = st.columns([1, 1])
-
-    with viewer_col:
-        _render_result_viewer(processed_images)
-        _render_navigation_controls(processed_images)
-
-    with gallery_col:
-        _render_processed_gallery(processed_images)
-
-        # Show queued images
-        if annotated_images:
-            st.divider()
-            st.subheader(f"Queued ({len(annotated_images)})")
-            for img in annotated_images[:6]:
-                status_color = _get_status_color(img.get("processing_status", "pending"))
-                st.markdown(
-                    f"<span style='color: {status_color};'>{img['filename']}</span>",
-                    unsafe_allow_html=True,
-                )
+    # Render image gallery
+    _render_processed_gallery(images)

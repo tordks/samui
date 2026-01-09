@@ -3,11 +3,22 @@
 from io import BytesIO
 
 import httpx
-from PIL import Image
 import streamlit as st
+from PIL import Image, ImageDraw
 
 from samui_frontend.components.bbox_annotator import bbox_annotator, get_bbox_color
+from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
 from samui_frontend.config import API_URL
+
+# Color palette for bounding boxes (matches bbox_annotator)
+BBOX_COLORS = [
+    "#ff4b4b",  # red
+    "#4bff4b",  # green
+    "#4b4bff",  # blue
+    "#ffff4b",  # yellow
+    "#ff4bff",  # magenta
+    "#4bffff",  # cyan
+]
 
 
 def _fetch_images() -> list[dict]:
@@ -71,6 +82,26 @@ def _delete_annotation(annotation_id: str) -> bool:
         return False
 
 
+def _create_bbox_overlay(image: dict, image_data: bytes) -> Image.Image:
+    """Create overlay with bboxes for gallery display."""
+    pil_image = Image.open(BytesIO(image_data)).convert("RGBA")
+    annotations = _fetch_annotations(image["id"])
+
+    if not annotations:
+        return pil_image.convert("RGB")
+
+    draw = ImageDraw.Draw(pil_image)
+    for idx, ann in enumerate(annotations):
+        color = BBOX_COLORS[idx % len(BBOX_COLORS)]
+        x1 = ann["bbox_x"]
+        y1 = ann["bbox_y"]
+        x2 = x1 + ann["bbox_width"]
+        y2 = y1 + ann["bbox_height"]
+        draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
+
+    return pil_image.convert("RGB")
+
+
 def _render_image_annotator(current_image: dict, annotations: list[dict]) -> None:
     """Render the image with bbox annotator component."""
     image_id = current_image["id"]
@@ -117,22 +148,24 @@ def _render_navigation_controls(images: list[dict]) -> None:
 def _render_thumbnail_gallery(images: list[dict]) -> None:
     """Render the thumbnail gallery for image selection."""
     st.subheader("Select Image")
-    num_cols = min(len(images), 6)
-    thumb_cols = st.columns(num_cols)
 
-    for idx, img in enumerate(images[:12]):
-        with thumb_cols[idx % num_cols]:
-            thumb_data = _fetch_image_data(img["id"])
-            if thumb_data:
-                is_selected = idx == st.session_state.selected_image_index
-                if st.button(
-                    "Selected" if is_selected else "Select",
-                    key=f"thumb_{img['id']}",
-                    disabled=is_selected,
-                ):
-                    st.session_state.selected_image_index = idx
-                    st.rerun()
-                st.image(thumb_data, use_container_width=True)
+    def handle_select(image: dict) -> None:
+        idx = next(i for i, img in enumerate(images) if img["id"] == image["id"])
+        st.session_state.selected_image_index = idx
+        st.rerun()
+
+    image_gallery(
+        images,
+        config=GalleryConfig(
+            columns=6,
+            max_images=12,
+            show_dimensions=False,
+            key_prefix="annotation_",
+            selected_index=st.session_state.selected_image_index,
+        ),
+        on_select=handle_select,
+        image_renderer=_create_bbox_overlay,
+    )
 
 
 def _render_annotation_list(annotations: list[dict]) -> None:
