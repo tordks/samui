@@ -86,6 +86,32 @@ def _save_coco_to_storage(
     return coco_blob_path
 
 
+def _save_processing_result(
+    db: Session,
+    image_id: uuid.UUID,
+    mode: SegmentationMode,
+    mask_blob_path: str,
+    coco_blob_path: str,
+    batch_id: uuid.UUID,
+    existing_result: ProcessingResult | None,
+) -> None:
+    """Update existing or create new ProcessingResult."""
+    if existing_result:
+        existing_result.mask_blob_path = mask_blob_path
+        existing_result.coco_json_blob_path = coco_blob_path
+        existing_result.batch_id = batch_id
+    else:
+        db.add(
+            ProcessingResult(
+                image_id=image_id,
+                mode=mode,
+                mask_blob_path=mask_blob_path,
+                coco_json_blob_path=coco_blob_path,
+                batch_id=batch_id,
+            )
+        )
+
+
 def _process_single_image(
     db: Session,
     storage: StorageService,
@@ -119,19 +145,7 @@ def _process_single_image(
     mask_blob_path = _save_mask_to_storage(storage, masks, image.id, mode)
     coco_blob_path = _save_coco_to_storage(storage, image, bboxes, masks, mode)
 
-    if existing_result:
-        existing_result.mask_blob_path = mask_blob_path
-        existing_result.coco_json_blob_path = coco_blob_path
-        existing_result.batch_id = batch_id
-    else:
-        result = ProcessingResult(
-            image_id=image.id,
-            mode=mode,
-            mask_blob_path=mask_blob_path,
-            coco_json_blob_path=coco_blob_path,
-            batch_id=batch_id,
-        )
-        db.add(result)
+    _save_processing_result(db, image.id, mode, mask_blob_path, coco_blob_path, batch_id, existing_result)
 
     image.processing_status = ProcessingStatus.PROCESSED
     db.commit()
@@ -218,20 +232,7 @@ def _process_single_image_find_all(
         mask_blob_path = _save_mask_to_storage(storage, empty_masks, image.id, mode)
         coco_blob_path = _save_coco_to_storage(storage, image, [], empty_masks, mode)
 
-    # Update or create ProcessingResult
-    if existing_result:
-        existing_result.mask_blob_path = mask_blob_path
-        existing_result.coco_json_blob_path = coco_blob_path
-        existing_result.batch_id = batch_id
-    else:
-        result = ProcessingResult(
-            image_id=image.id,
-            mode=mode,
-            mask_blob_path=mask_blob_path,
-            coco_json_blob_path=coco_blob_path,
-            batch_id=batch_id,
-        )
-        db.add(result)
+    _save_processing_result(db, image.id, mode, mask_blob_path, coco_blob_path, batch_id, existing_result)
 
     image.processing_status = ProcessingStatus.PROCESSED
     db.commit()
