@@ -8,23 +8,13 @@ from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
 from samui_backend.db.models import Image
+from samui_backend.dependencies import get_storage_service
 from samui_backend.schemas import ImageList, ImageResponse, ImageUpdate
 from samui_backend.services.storage import StorageService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/images", tags=["images"])
-
-# Singleton storage service
-_storage_service: StorageService | None = None
-
-
-def get_storage_service() -> StorageService:
-    """Get or create the storage service singleton."""
-    global _storage_service
-    if _storage_service is None:
-        _storage_service = StorageService()
-    return _storage_service
 
 
 @router.post("", response_model=ImageResponse, status_code=201)
