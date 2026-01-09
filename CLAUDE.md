@@ -22,12 +22,12 @@ docker compose up postgres azurite -d
 # Copy environment file (first time setup)
 cp .env.example .env
 
-# Backend
+# Backend (API at http://localhost:8000, docs at http://localhost:8000/docs)
 cd packages/samui-backend
 uv sync
 uv run uvicorn samui_backend.main:app --reload
 
-# Frontend (in another terminal)
+# Frontend (UI at http://localhost:8501)
 cd packages/samui-frontend
 uv sync
 uv run streamlit run src/samui_frontend/app.py
@@ -47,7 +47,7 @@ uv run pytest ../../tests/test_api_images.py -v
 uv run pytest ../../tests/test_api_images.py::test_upload_image -v
 ```
 
-Tests use in-memory SQLite and mocked Azure storage. Fixtures are in `tests/conftest.py`.
+Tests use in-memory SQLite and mocked Azure storage. Must run from `packages/samui-backend` to resolve dependencies. Fixtures in `tests/conftest.py` use FastAPI's `dependency_overrides` to inject test database and mock storage.
 
 ### Linting and Formatting
 
@@ -90,3 +90,11 @@ Monorepo with isolated packages:
 - SQLAlchemy ORM with UUID primary keys and type-mapped columns
 - Pydantic for all API validation
 - Database tables auto-created on startup via lifespan context manager
+- SAM3 model uses lazy loading (`load_model()` before inference, `unload_model()` to free GPU)
+
+## Environment Variables
+
+Key variables in `.env.example`:
+- `DATABASE_URL` - PostgreSQL connection string
+- `AZURE_STORAGE_CONNECTION_STRING` - Blob storage (Azurite for local dev)
+- `HF_TOKEN` - Required for SAM3 model download from Hugging Face
