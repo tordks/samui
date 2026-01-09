@@ -4,11 +4,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-import httpx
 import streamlit as st
 from PIL import Image
 
-from samui_frontend.config import API_URL
+from samui_frontend.api import fetch_image_data
 
 
 @dataclass
@@ -24,18 +23,9 @@ class GalleryConfig:
 
 
 @st.cache_data(ttl=60)
-def _fetch_image_data(image_id: str) -> bytes | None:
-    """Fetch image data from the backend API.
-
-    Cached to avoid repeated requests for the same image.
-    """
-    try:
-        response = httpx.get(f"{API_URL}/images/{image_id}/data", timeout=10.0)
-        if response.status_code == 200:
-            return response.content
-    except httpx.RequestError:
-        pass
-    return None
+def _fetch_image_data_cached(image_id: str) -> bytes | None:
+    """Fetch image data with caching for gallery display."""
+    return fetch_image_data(image_id)
 
 
 def _render_image(
@@ -123,7 +113,7 @@ def image_gallery(
                 if label:
                     st.caption(label)
 
-            image_data = _fetch_image_data(image["id"])
+            image_data = _fetch_image_data_cached(image["id"])
             if image_data:
                 _render_image(image, image_data, image_renderer)
             else:

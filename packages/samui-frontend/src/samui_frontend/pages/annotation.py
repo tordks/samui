@@ -2,151 +2,25 @@
 
 from io import BytesIO
 
-import httpx
 import streamlit as st
 from PIL import Image, ImageDraw
 
+from samui_frontend.api import (
+    create_annotation,
+    delete_annotation,
+    fetch_annotations,
+    fetch_image_data,
+    fetch_images,
+    update_image_text_prompt,
+)
 from samui_frontend.components.bbox_annotator import bbox_annotator
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
-from samui_frontend.config import API_URL
 from samui_frontend.constants import (
     BBOX_COLORS,
     COLOR_NEGATIVE_EXEMPLAR,
     COLOR_POSITIVE_EXEMPLAR,
 )
-from samui_frontend.models import AnnotationSource, PromptType, SegmentationMode
-
-
-def _fetch_images() -> list[dict]:
-    """Fetch all images from the API."""
-    try:
-        response = httpx.get(f"{API_URL}/images", timeout=10.0)
-        response.raise_for_status()
-        return response.json().get("images", [])
-    except httpx.HTTPError:
-        return []
-
-
-def _fetch_image_data(image_id: str) -> bytes | None:
-    """Fetch image data from the API."""
-    try:
-        response = httpx.get(f"{API_URL}/images/{image_id}/data", timeout=10.0)
-        if response.status_code == 200:
-            return response.content
-    except httpx.HTTPError:
-        pass
-    return None
-
-
-def _fetch_annotations(image_id: str, mode: SegmentationMode | None = None) -> list[dict]:
-    """Fetch annotations for an image, optionally filtered by segmentation mode.
-
-    Args:
-        image_id: The image UUID.
-        mode: If provided, filter annotations by mode:
-            - INSIDE_BOX: only SEGMENT prompt_type
-            - FIND_ALL: both POSITIVE_EXEMPLAR and NEGATIVE_EXEMPLAR prompt_types
-    """
-    try:
-        if mode is None:
-            # Fetch all annotations
-            response = httpx.get(f"{API_URL}/annotations/{image_id}", timeout=10.0)
-            response.raise_for_status()
-            return response.json().get("annotations", [])
-
-        if mode == SegmentationMode.INSIDE_BOX:
-            # Fetch only user-created SEGMENT annotations (exclude model-generated)
-            response = httpx.get(
-                f"{API_URL}/annotations/{image_id}",
-                params={
-                    "prompt_type": PromptType.SEGMENT.value,
-                    "source": AnnotationSource.USER.value,
-                },
-                timeout=10.0,
-            )
-            response.raise_for_status()
-            return response.json().get("annotations", [])
-
-        # FIND_ALL mode: fetch both positive and negative exemplars
-        annotations = []
-        for pt in [PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]:
-            response = httpx.get(
-                f"{API_URL}/annotations/{image_id}",
-                params={"prompt_type": pt.value},
-                timeout=10.0,
-            )
-            response.raise_for_status()
-            annotations.extend(response.json().get("annotations", []))
-        return annotations
-
-    except httpx.HTTPError:
-        return []
-
-
-def _create_annotation(
-    image_id: str,
-    x: int,
-    y: int,
-    width: int,
-    height: int,
-    prompt_type: PromptType = PromptType.SEGMENT,
-) -> bool:
-    """Create a new annotation with the specified prompt type."""
-    try:
-        response = httpx.post(
-            f"{API_URL}/annotations",
-            json={
-                "image_id": image_id,
-                "bbox_x": x,
-                "bbox_y": y,
-                "bbox_width": width,
-                "bbox_height": height,
-                "prompt_type": prompt_type.value,
-            },
-            timeout=10.0,
-        )
-        response.raise_for_status()
-        return True
-    except httpx.HTTPError:
-        return False
-
-
-def _delete_annotation(annotation_id: str) -> bool:
-    """Delete an annotation."""
-    try:
-        response = httpx.delete(f"{API_URL}/annotations/{annotation_id}", timeout=10.0)
-        response.raise_for_status()
-        return True
-    except httpx.HTTPError:
-        return False
-
-
-def _update_image_text_prompt(image_id: str, text_prompt: str) -> bool:
-    """Update the text prompt for an image."""
-    try:
-        response = httpx.patch(
-            f"{API_URL}/images/{image_id}",
-            json={"text_prompt": text_prompt},
-            timeout=10.0,
-        )
-        response.raise_for_status()
-        return True
-    except httpx.HTTPError:
-        return False
-
-
-def _clear_image_text_prompt(image_id: str) -> bool:
-    """Clear the text prompt for an image."""
-    try:
-        response = httpx.patch(
-            f"{API_URL}/images/{image_id}",
-            json={"text_prompt": None},
-            timeout=10.0,
-        )
-        response.raise_for_status()
-        return True
-    except httpx.HTTPError:
-        return False
+from samui_frontend.models import PromptType, SegmentationMode
 
 
 def _get_text_prompt_label(image: dict) -> str | None:
@@ -163,7 +37,7 @@ def _create_bbox_overlay(image: dict, image_data: bytes) -> Image.Image:
 
     # Get current mode from session state
     mode = st.session_state.get("segmentation_mode", SegmentationMode.INSIDE_BOX)
-    annotations = _fetch_annotations(image["id"], mode)
+    annotations = fetch_annotations(image["id"], mode, exclude_model=True)
 
     if not annotations:
         return pil_image.convert("RGB")
@@ -198,7 +72,7 @@ def _render_image_annotator(
 ) -> None:
     """Render the image with bbox annotator component."""
     image_id = current_image["id"]
-    image_data = _fetch_image_data(image_id)
+    image_data = fetch_image_data(image_id)
 
     if not image_data:
         st.error("Failed to load image")
@@ -213,7 +87,7 @@ def _render_image_annotator(
         # Use the passed exemplar_type (SEGMENT for inside_box, selected type for find_all)
         prompt_type = exemplar_type
 
-        if _create_annotation(
+        if create_annotation(
             image_id,
             new_bbox["x"],
             new_bbox["y"],
@@ -321,7 +195,7 @@ def _render_annotation_list(annotations: list[dict], mode: SegmentationMode) -> 
 
         with col2:
             if st.button("X", key=f"del_{annotation['id']}"):
-                if _delete_annotation(annotation["id"]):
+                if delete_annotation(annotation["id"]):
                     st.rerun()
                 else:
                     st.error("Failed to delete")
@@ -356,7 +230,7 @@ def _render_find_all_controls(current_image: dict) -> PromptType:
             st.info(f"**Text prompt:** {current_prompt}")
         with delete_col:
             if st.button("X", key=f"clear_prompt_{current_image['id']}", help="Clear text prompt"):
-                if _clear_image_text_prompt(current_image["id"]):
+                if update_image_text_prompt(current_image["id"], None):
                     st.rerun()
                 else:
                     st.error("Failed to clear")
@@ -377,7 +251,7 @@ def _render_find_all_controls(current_image: dict) -> PromptType:
 
         # Save if changed
         if new_prompt != current_prompt:
-            if _update_image_text_prompt(current_image["id"], new_prompt):
+            if update_image_text_prompt(current_image["id"], new_prompt):
                 st.rerun()
             else:
                 st.error("Failed to save text prompt")
@@ -458,7 +332,7 @@ def render() -> None:
     current_mode = _render_mode_toggle()
     st.divider()
 
-    images = _fetch_images()
+    images = fetch_images()
 
     if not images:
         st.info("No images uploaded. Please upload images first.")
@@ -468,7 +342,7 @@ def render() -> None:
         st.session_state.selected_image_index = 0
 
     current_image = images[st.session_state.selected_image_index]
-    annotations = _fetch_annotations(current_image["id"], current_mode)
+    annotations = fetch_annotations(current_image["id"], current_mode, exclude_model=True)
 
     # Show find-all controls (text prompt + exemplar type toggle)
     exemplar_type = PromptType.SEGMENT  # Default for inside_box mode

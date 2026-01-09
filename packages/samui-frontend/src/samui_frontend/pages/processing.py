@@ -1,120 +1,27 @@
 """Processing page for running SAM3 inference and viewing results."""
 
 import io
+import json
 import time
 
-import httpx
 import streamlit as st
 from PIL import Image, ImageDraw
 
+from samui_frontend.api import (
+    download_coco_json,
+    fetch_annotations,
+    fetch_images,
+    fetch_mask_data,
+    get_processing_status,
+    start_processing,
+)
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
-from samui_frontend.config import API_URL
 from samui_frontend.constants import (
     BBOX_COLORS,
     COLOR_NEGATIVE_EXEMPLAR,
     COLOR_POSITIVE_EXEMPLAR,
 )
-from samui_frontend.models import AnnotationSource, PromptType, SegmentationMode
-
-
-def _fetch_images() -> list[dict]:
-    """Fetch all images from the API."""
-    try:
-        response = httpx.get(f"{API_URL}/images", timeout=10.0)
-        response.raise_for_status()
-        return response.json().get("images", [])
-    except httpx.HTTPError:
-        return []
-
-
-def _fetch_image_data(image_id: str) -> bytes | None:
-    """Fetch image data from the API."""
-    try:
-        response = httpx.get(f"{API_URL}/images/{image_id}/data", timeout=10.0)
-        if response.status_code == 200:
-            return response.content
-    except httpx.HTTPError:
-        pass
-    return None
-
-
-def _fetch_mask_data(image_id: str, mode: SegmentationMode | None = None) -> bytes | None:
-    """Fetch mask data from the API for the specified mode."""
-    try:
-        params = {}
-        if mode:
-            params["mode"] = mode.value
-        response = httpx.get(
-            f"{API_URL}/process/mask/{image_id}",
-            params=params if params else None,
-            timeout=10.0,
-        )
-        if response.status_code == 200:
-            return response.content
-    except httpx.HTTPError:
-        pass
-    return None
-
-
-def _fetch_annotations(
-    image_id: str,
-    mode: SegmentationMode | None = None,
-    for_display: bool = False,
-) -> list[dict]:
-    """Fetch annotations for an image, optionally filtered by segmentation mode.
-
-    Args:
-        image_id: The image UUID.
-        mode: If provided, filter annotations by mode:
-            - INSIDE_BOX: only SEGMENT prompt_type
-            - FIND_ALL: both POSITIVE_EXEMPLAR and NEGATIVE_EXEMPLAR prompt_types
-                (or SEGMENT with source=MODEL when for_display=True)
-        for_display: If True in FIND_ALL mode, fetch model-generated results
-            instead of user-provided exemplars.
-    """
-    try:
-        if mode is None:
-            response = httpx.get(f"{API_URL}/annotations/{image_id}", timeout=10.0)
-            response.raise_for_status()
-            return response.json().get("annotations", [])
-
-        if mode == SegmentationMode.INSIDE_BOX:
-            response = httpx.get(
-                f"{API_URL}/annotations/{image_id}",
-                params={"prompt_type": PromptType.SEGMENT.value},
-                timeout=10.0,
-            )
-            response.raise_for_status()
-            return response.json().get("annotations", [])
-
-        # FIND_ALL mode
-        if for_display:
-            # Fetch model-generated segment annotations (the discovered objects)
-            response = httpx.get(
-                f"{API_URL}/annotations/{image_id}",
-                params={
-                    "prompt_type": PromptType.SEGMENT.value,
-                    "source": AnnotationSource.MODEL.value,
-                },
-                timeout=10.0,
-            )
-            response.raise_for_status()
-            return response.json().get("annotations", [])
-
-        # Fetch user-provided exemplars (positive and negative)
-        annotations = []
-        for pt in [PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]:
-            response = httpx.get(
-                f"{API_URL}/annotations/{image_id}",
-                params={"prompt_type": pt.value},
-                timeout=10.0,
-            )
-            response.raise_for_status()
-            annotations.extend(response.json().get("annotations", []))
-        return annotations
-
-    except httpx.HTTPError:
-        return []
+from samui_frontend.models import PromptType, SegmentationMode
 
 
 def _get_annotation_color(annotation: dict, index: int) -> str:
@@ -206,58 +113,16 @@ def _create_gallery_overlay(image: dict, image_data: bytes) -> Image.Image:
     and raw image for pending. Uses current segmentation mode from session state.
     """
     mode = st.session_state.get("segmentation_mode", SegmentationMode.INSIDE_BOX)
-    annotations = _fetch_annotations(image["id"], mode, for_display=True)
+    annotations = fetch_annotations(image["id"], mode, for_display=True)
 
     # Check if image has been processed for this mode
     # For now, we only show mask if we have annotations for the mode
     # The mask endpoint handles mode-specific results
     mask_data = None
     if annotations:
-        mask_data = _fetch_mask_data(image["id"], mode)
+        mask_data = fetch_mask_data(image["id"], mode)
 
     return _create_overlay_image(image_data, mask_data, annotations, mode)
-
-
-def _start_processing(image_ids: list[str], mode: SegmentationMode) -> dict | None:
-    """Start processing for given image IDs with the specified mode."""
-    try:
-        response = httpx.post(
-            f"{API_URL}/process",
-            json={"image_ids": image_ids, "mode": mode.value},
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError as e:
-        st.error(f"Failed to start processing: {e}")
-        return None
-
-
-def _get_processing_status() -> dict | None:
-    """Get current processing status."""
-    try:
-        response = httpx.get(f"{API_URL}/process/status", timeout=10.0)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError:
-        return None
-
-
-def _download_coco_json(image_id: str, mode: SegmentationMode | None = None) -> dict | None:
-    """Download COCO JSON for an image."""
-    try:
-        params = {}
-        if mode:
-            params["mode"] = mode.value
-        response = httpx.get(
-            f"{API_URL}/process/export/{image_id}",
-            params=params if params else None,
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError:
-        return None
 
 
 def _download_all_coco_json(processed_images: list[dict], mode: SegmentationMode | None = None) -> dict | None:
@@ -271,16 +136,16 @@ def _download_all_coco_json(processed_images: list[dict], mode: SegmentationMode
     if not processed_images:
         return None
 
-    combined = {
+    combined: dict = {
         "images": [],
         "annotations": [],
         "categories": [],
     }
-    categories_seen = set()
+    categories_seen: set[int] = set()
     annotation_id_offset = 0
 
     for img in processed_images:
-        coco_data = _download_coco_json(img["id"], mode)
+        coco_data = download_coco_json(img["id"], mode)
         if not coco_data:
             continue
 
@@ -317,13 +182,13 @@ def _get_images_ready_for_mode(images: list[dict], mode: SegmentationMode) -> li
     for img in images:
         if mode == SegmentationMode.INSIDE_BOX:
             # Check for segment annotations
-            annotations = _fetch_annotations(img["id"], mode)
+            annotations = fetch_annotations(img["id"], mode)
             if annotations:
                 ready.append(img)
         else:
             # Check for text_prompt or exemplar annotations
             has_text = bool(img.get("text_prompt"))
-            annotations = _fetch_annotations(img["id"], mode)
+            annotations = fetch_annotations(img["id"], mode)
             if has_text or annotations:
                 ready.append(img)
     return ready
@@ -331,7 +196,7 @@ def _get_images_ready_for_mode(images: list[dict], mode: SegmentationMode) -> li
 
 def _get_annotation_badge(image: dict, mode: SegmentationMode) -> str:
     """Get a badge string describing annotations for an image in the given mode."""
-    annotations = _fetch_annotations(image["id"], mode)
+    annotations = fetch_annotations(image["id"], mode)
 
     if mode == SegmentationMode.INSIDE_BOX:
         count = len(annotations)
@@ -394,7 +259,6 @@ def _render_process_controls(
     mode: SegmentationMode,
 ) -> None:
     """Render the process button, download button, and progress indicator."""
-    import json
 
     mode_label = "Inside Box" if mode == SegmentationMode.INSIDE_BOX else "Find All"
     st.subheader("Processing Controls")
@@ -410,11 +274,13 @@ def _render_process_controls(
             type="primary",
         ):
             image_ids = [img["id"] for img in ready_images]
-            result = _start_processing(image_ids, mode)
+            result = start_processing(image_ids, mode)
             if result:
                 st.session_state.processing_batch_id = result.get("batch_id")
                 st.success(f"Processing started for {result.get('total_images')} images")
                 st.rerun()
+            else:
+                st.error("Failed to start processing")
 
     with col2:
         if processed_images:
@@ -430,7 +296,7 @@ def _render_process_controls(
             st.button("Download All COCO", disabled=True)
 
     with col3:
-        status = _get_processing_status()
+        status = get_processing_status()
         if status and status.get("is_running"):
             processed = status.get("processed_count", 0)
             total = status.get("total_count", 0)
@@ -511,7 +377,7 @@ def render() -> None:
     st.divider()
 
     # Fetch all images
-    images = _fetch_images()
+    images = fetch_images()
 
     # Get images ready for processing in current mode
     ready_images = _get_images_ready_for_mode(images, current_mode)

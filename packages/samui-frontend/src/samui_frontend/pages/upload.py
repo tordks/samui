@@ -1,10 +1,9 @@
 """Upload page for image uploads and gallery display."""
 
-import httpx
 import streamlit as st
 
+from samui_frontend.api import delete_image, fetch_images, upload_image
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
-from samui_frontend.config import API_URL
 
 
 def render() -> None:
@@ -26,12 +25,13 @@ def render() -> None:
         for idx, uploaded_file in enumerate(uploaded_files):
             status_text.text(f"Uploading {uploaded_file.name}...")
 
-            try:
-                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-                response = httpx.post(f"{API_URL}/images", files=files, timeout=30.0)
-                response.raise_for_status()
-            except httpx.HTTPError as e:
-                st.error(f"Failed to upload {uploaded_file.name}: {e}")
+            result = upload_image(
+                uploaded_file.name,
+                uploaded_file.getvalue(),
+                uploaded_file.type or "application/octet-stream",
+            )
+            if not result:
+                st.error(f"Failed to upload {uploaded_file.name}")
                 continue
 
             progress_bar.progress((idx + 1) / len(uploaded_files))
@@ -44,26 +44,15 @@ def render() -> None:
 
     # Image gallery
     st.subheader("Uploaded Images")
-
-    # Fetch images from API
-    try:
-        response = httpx.get(f"{API_URL}/images", timeout=10.0)
-        response.raise_for_status()
-        data = response.json()
-        images = data.get("images", [])
-    except httpx.HTTPError as e:
-        st.error(f"Failed to fetch images: {e}")
-        images = []
+    images = fetch_images()
 
     def handle_delete(image: dict) -> None:
         """Handle image deletion."""
-        try:
-            response = httpx.delete(f"{API_URL}/images/{image['id']}", timeout=10.0)
-            response.raise_for_status()
+        if delete_image(image["id"]):
             st.success(f"Deleted {image['filename']}")
             st.rerun()
-        except httpx.HTTPError as e:
-            st.error(f"Failed to delete image: {e}")
+        else:
+            st.error("Failed to delete image")
 
     image_gallery(
         images,
