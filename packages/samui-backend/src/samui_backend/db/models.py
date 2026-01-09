@@ -1,6 +1,5 @@
 """SQLAlchemy database models."""
 
-import enum
 import uuid
 from datetime import UTC, datetime
 
@@ -9,37 +8,18 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from samui_backend.db.database import Base
+from samui_backend.enums import AnnotationSource, ProcessingStatus, PromptType, SegmentationMode
 
-
-class ProcessingStatus(str, enum.Enum):
-    """Processing status for images."""
-
-    PENDING = "pending"
-    ANNOTATED = "annotated"
-    PROCESSING = "processing"
-    PROCESSED = "processed"
-
-
-class PromptType(str, enum.Enum):
-    """Type of annotation prompt for segmentation."""
-
-    SEGMENT = "segment"
-    POSITIVE_EXEMPLAR = "positive_exemplar"
-    NEGATIVE_EXEMPLAR = "negative_exemplar"
-
-
-class AnnotationSource(str, enum.Enum):
-    """Source of an annotation."""
-
-    USER = "user"
-    MODEL = "model"
-
-
-class SegmentationMode(str, enum.Enum):
-    """Segmentation mode for processing."""
-
-    INSIDE_BOX = "inside_box"
-    FIND_ALL = "find_all"
+# Re-export enums for backward compatibility
+__all__ = [
+    "AnnotationSource",
+    "ProcessingStatus",
+    "PromptType",
+    "SegmentationMode",
+    "Image",
+    "Annotation",
+    "ProcessingResult",
+]
 
 
 class Image(Base):

@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from samui_backend.db.models import (
+from samui_backend.enums import (
     AnnotationSource,
     ProcessingStatus,
     PromptType,

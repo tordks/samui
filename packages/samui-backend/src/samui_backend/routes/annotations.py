@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
-from samui_backend.db.models import Annotation, AnnotationSource, Image, ProcessingStatus, PromptType
+from samui_backend.db.models import Annotation, Image
+from samui_backend.enums import AnnotationSource, ProcessingStatus, PromptType
 from samui_backend.schemas import AnnotationCreate, AnnotationList, AnnotationResponse
 
 router = APIRouter(prefix="/annotations", tags=["annotations"])

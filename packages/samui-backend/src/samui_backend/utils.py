@@ -1,6 +1,6 @@
 """Shared utility functions."""
 
-from samui_backend.db.models import SegmentationMode
+from samui_backend.enums import SegmentationMode
 
 
 def get_image_content_type(extension: str) -> str:

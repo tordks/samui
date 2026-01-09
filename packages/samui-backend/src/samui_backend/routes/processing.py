@@ -14,16 +14,9 @@ from PIL import Image as PILImage
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import SessionLocal, get_db
-from samui_backend.db.models import (
-    Annotation,
-    AnnotationSource,
-    Image,
-    ProcessingResult,
-    ProcessingStatus,
-    PromptType,
-    SegmentationMode,
-)
+from samui_backend.db.models import Annotation, Image, ProcessingResult
 from samui_backend.dependencies import get_sam3_service, get_storage_service
+from samui_backend.enums import AnnotationSource, ProcessingStatus, PromptType, SegmentationMode
 from samui_backend.schemas import ProcessRequest, ProcessResponse, ProcessStatus
 from samui_backend.services import SAM3Service, StorageService, generate_coco_json
 from samui_backend.utils import get_blob_path_suffix
