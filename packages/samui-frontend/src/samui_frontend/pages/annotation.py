@@ -15,6 +15,7 @@ from samui_frontend.api import (
 )
 from samui_frontend.components.bbox_annotator import bbox_annotator
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
+from samui_frontend.components.mode_toggle import render_mode_toggle
 from samui_frontend.constants import COLOR_NEGATIVE_EXEMPLAR, COLOR_POSITIVE_EXEMPLAR
 from samui_frontend.models import PromptType, SegmentationMode
 from samui_frontend.utils import get_annotation_color, get_text_prompt_label
@@ -258,41 +259,6 @@ def _render_find_all_controls(current_image: dict) -> PromptType:
     return st.session_state.exemplar_type
 
 
-def _render_mode_toggle() -> SegmentationMode:
-    """Render the segmentation mode toggle and return the selected mode."""
-    mode_options = {
-        SegmentationMode.INSIDE_BOX: "Inside Box",
-        SegmentationMode.FIND_ALL: "Find All",
-    }
-    mode_descriptions = {
-        SegmentationMode.INSIDE_BOX: "Segment objects inside each bounding box",
-        SegmentationMode.FIND_ALL: "Find all instances matching text prompt or exemplars",
-    }
-
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        selected_label = st.radio(
-            "Segmentation Mode",
-            options=list(mode_options.values()),
-            index=0 if st.session_state.segmentation_mode == SegmentationMode.INSIDE_BOX else 1,
-            horizontal=True,
-            key="mode_radio",
-        )
-
-    # Map label back to enum
-    mode = SegmentationMode.INSIDE_BOX if selected_label == "Inside Box" else SegmentationMode.FIND_ALL
-
-    # Update session state if mode changed
-    if mode != st.session_state.segmentation_mode:
-        st.session_state.segmentation_mode = mode
-        st.rerun()
-
-    with col2:
-        st.caption(mode_descriptions[mode])
-
-    return mode
-
-
 def render() -> None:
     """Render the annotation page."""
     st.header("Annotate Images")
@@ -308,7 +274,7 @@ def render() -> None:
         st.session_state.exemplar_type = PromptType.POSITIVE_EXEMPLAR
 
     # Mode toggle at the top
-    current_mode = _render_mode_toggle()
+    current_mode = render_mode_toggle(key="mode_radio")
     st.divider()
 
     images = fetch_images()

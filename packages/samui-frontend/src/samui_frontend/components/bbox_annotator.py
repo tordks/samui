@@ -1,6 +1,5 @@
 """Bounding box annotator component using streamlit-image-coordinates."""
 
-from collections.abc import Callable
 from typing import Any
 
 import streamlit as st
@@ -49,7 +48,6 @@ def _draw_bboxes_on_image(
 def bbox_annotator(
     image: Image.Image,
     annotations: list[dict[str, Any]],
-    on_bbox_drawn: Callable[[int, int, int, int], None] | None = None,
     key: str = "bbox_annotator",
 ) -> dict[str, int] | None:
     """Interactive bounding box annotator component.
@@ -60,7 +58,6 @@ def bbox_annotator(
     Args:
         image: PIL Image to annotate.
         annotations: List of existing annotation dicts with bbox_x, bbox_y, bbox_width, bbox_height.
-        on_bbox_drawn: Callback when a new bbox is drawn, receives (x, y, width, height).
         key: Unique key for the Streamlit component.
 
     Returns:
@@ -109,17 +106,12 @@ def bbox_annotator(
             # Mark this bbox as processed
             st.session_state[state_key] = current_time
 
-            bbox = {
+            return {
                 "x": min_x,
                 "y": min_y,
                 "width": width,
                 "height": height,
             }
-
-            if on_bbox_drawn:
-                on_bbox_drawn(min_x, min_y, width, height)
-
-            return bbox
 
     return None
 

@@ -16,6 +16,7 @@ from samui_frontend.api import (
     start_processing,
 )
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
+from samui_frontend.components.mode_toggle import render_mode_toggle
 from samui_frontend.models import PromptType, SegmentationMode
 from samui_frontend.utils import (
     get_annotation_color,
@@ -189,41 +190,6 @@ def _get_annotation_badge(image: dict, mode: SegmentationMode) -> str:
         return ", ".join(parts) if parts else "No prompts"
 
 
-def _render_mode_toggle() -> SegmentationMode:
-    """Render the segmentation mode toggle and return the selected mode."""
-    mode_options = {
-        SegmentationMode.INSIDE_BOX: "Inside Box",
-        SegmentationMode.FIND_ALL: "Find All",
-    }
-    mode_descriptions = {
-        SegmentationMode.INSIDE_BOX: "Segment objects inside each bounding box",
-        SegmentationMode.FIND_ALL: "Find all instances matching text prompt or exemplars",
-    }
-
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        selected_label = st.radio(
-            "Segmentation Mode",
-            options=list(mode_options.values()),
-            index=0 if st.session_state.segmentation_mode == SegmentationMode.INSIDE_BOX else 1,
-            horizontal=True,
-            key="processing_mode_radio",
-        )
-
-    # Map label back to enum
-    mode = SegmentationMode.INSIDE_BOX if selected_label == "Inside Box" else SegmentationMode.FIND_ALL
-
-    # Update session state if mode changed
-    if mode != st.session_state.segmentation_mode:
-        st.session_state.segmentation_mode = mode
-        st.rerun()
-
-    with col2:
-        st.caption(mode_descriptions[mode])
-
-    return mode
-
-
 def _render_process_controls(
     ready_images: list[dict],
     processed_images: list[dict],
@@ -344,7 +310,7 @@ def render() -> None:
         st.session_state.segmentation_mode = SegmentationMode.INSIDE_BOX
 
     # Mode toggle at the top
-    current_mode = _render_mode_toggle()
+    current_mode = render_mode_toggle(key="processing_mode_radio")
     st.divider()
 
     # Fetch all images
