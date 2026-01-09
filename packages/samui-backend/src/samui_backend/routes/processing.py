@@ -78,8 +78,7 @@ def _save_mask_to_storage(
     mask_image.save(mask_buffer, format="PNG")
     mask_bytes = mask_buffer.getvalue()
 
-    blob_client = storage._client.get_blob_client(container=storage._container_name, blob=mask_blob_path)
-    blob_client.upload_blob(mask_bytes, overwrite=True)
+    storage.upload_blob(mask_blob_path, mask_bytes, content_type="image/png")
     return mask_blob_path
 
 
@@ -102,8 +101,7 @@ def _save_coco_to_storage(
         masks=masks,
     )
     coco_bytes = json.dumps(coco_json, indent=2).encode("utf-8")
-    blob_client = storage._client.get_blob_client(container=storage._container_name, blob=coco_blob_path)
-    blob_client.upload_blob(coco_bytes, overwrite=True)
+    storage.upload_blob(coco_blob_path, coco_bytes, content_type="application/json")
     return coco_blob_path
 
 

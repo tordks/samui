@@ -89,3 +89,15 @@ class StorageService:
         """
         blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)
         blob_client.delete_blob(delete_snapshots="include")
+
+    def upload_blob(self, blob_path: str, data: bytes, content_type: str | None = None) -> None:
+        """Upload arbitrary data to blob storage.
+
+        Args:
+            blob_path: Path for the blob.
+            data: Raw bytes to upload.
+            content_type: Optional MIME content type.
+        """
+        blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)
+        settings = ContentSettings(content_type=content_type) if content_type else None
+        blob_client.upload_blob(data, overwrite=True, content_settings=settings)
