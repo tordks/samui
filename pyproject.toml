@@ -53,3 +53,19 @@ max-args = 7  # Allow up to 7 arguments in function definitions
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+# Bandit security linter configuration
+[tool.bandit]
+exclude_dirs = [
+    ".venv",
+    "venv",
+    ".git",
+    "__pycache__",
+    "node_modules",
+    "build",
+    "dist",
+]
+targets = ["."]
+skips = [
+    "B101",  # assert_used - acceptable in test code and type guards
+]

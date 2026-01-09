@@ -57,6 +57,9 @@ uvx ruff check packages/
 
 # Format
 uvx ruff format packages/
+
+# Security scan (uses config from pyproject.toml)
+uvx bandit -c pyproject.toml -r .
 ```
 
 ### Adding Dependencies
