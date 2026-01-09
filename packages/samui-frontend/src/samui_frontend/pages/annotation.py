@@ -264,15 +264,6 @@ def render() -> None:
     st.header("Annotate Images")
     st.caption("Draw bounding boxes to define segmentation regions")
 
-    if "selected_image_index" not in st.session_state:
-        st.session_state.selected_image_index = 0
-
-    if "segmentation_mode" not in st.session_state:
-        st.session_state.segmentation_mode = SegmentationMode.INSIDE_BOX
-
-    if "exemplar_type" not in st.session_state:
-        st.session_state.exemplar_type = PromptType.POSITIVE_EXEMPLAR
-
     # Mode toggle at the top
     current_mode = render_mode_toggle(key="mode_radio")
     st.divider()

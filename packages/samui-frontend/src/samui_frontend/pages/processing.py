@@ -305,10 +305,6 @@ def render() -> None:
     st.header("Process Images")
     st.caption("Run SAM3 inference on annotated images")
 
-    # Initialize session state
-    if "segmentation_mode" not in st.session_state:
-        st.session_state.segmentation_mode = SegmentationMode.INSIDE_BOX
-
     # Mode toggle at the top
     current_mode = render_mode_toggle(key="processing_mode_radio")
     st.divider()
