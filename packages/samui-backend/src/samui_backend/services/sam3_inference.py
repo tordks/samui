@@ -31,6 +31,15 @@ class FindAllResult:
     scores: NDArray[np.float32]  # Shape: (num_objects,), confidence scores
     bboxes: list[tuple[int, int, int, int]]  # List of (x, y, w, h) in pixels
 
+    @classmethod
+    def empty(cls, height: int, width: int) -> FindAllResult:
+        """Create empty result for no detections."""
+        return cls(
+            masks=np.array([], dtype=np.uint8).reshape(0, height, width),
+            scores=np.array([], dtype=np.float32),
+            bboxes=[],
+        )
+
 
 class SAM3Service:
     """Service for running SAM3 inference on images with bounding box prompts."""
@@ -224,7 +233,50 @@ class SAM3Service:
 
         return Datapoint(images=[sam_image], find_queries=[find_query])
 
-    def process_image_find_all(  # noqa: C901 - complexity from model output edge cases
+    def _normalize_mask_output(
+        self, masks_data: torch.Tensor | list, height: int, width: int
+    ) -> NDArray[np.uint8]:
+        """Normalize SAM3 mask output to binary numpy array.
+
+        Args:
+            masks_data: Raw mask output (tensor or list of tensors).
+            height: Expected mask height.
+            width: Expected mask width.
+
+        Returns:
+            Binary masks as uint8 array with shape (num_masks, H, W),
+            values 0 or 255.
+        """
+        empty = np.array([], dtype=np.uint8).reshape(0, height, width)
+
+        # Type dispatch: tensor vs list of tensors
+        if isinstance(masks_data, torch.Tensor):
+            if masks_data.numel() == 0:
+                return empty
+            masks = masks_data.cpu().numpy()
+        elif masks_data:
+            masks = torch.stack(masks_data).cpu().numpy()
+        else:
+            return empty
+
+        # Shape normalization: squeeze to (num_masks, H, W)
+        while masks.ndim > 3:
+            masks = masks.squeeze(1)
+
+        # Binarize
+        return (masks > 0).astype(np.uint8) * 255
+
+    def _boxes_xyxy_to_xywh(
+        self, boxes_tensor: torch.Tensor
+    ) -> list[tuple[int, int, int, int]]:
+        """Convert box tensor from xyxy to xywh format."""
+        if boxes_tensor.numel() == 0:
+            return []
+        boxes_np = boxes_tensor.float().cpu().numpy()
+        return [(int(x1), int(y1), int(x2 - x1), int(y2 - y1))
+                for x1, y1, x2, y2 in boxes_np]
+
+    def process_image_find_all(
         self,
         image: Image.Image,
         text_prompt: str | None = None,
@@ -278,49 +330,16 @@ class SAM3Service:
         postprocessor = self._create_postprocessor(detection_threshold)
         results = postprocessor.process_results(output, batch.find_metadatas)
 
-        # Extract masks, scores, and boxes from results
-        # Results are keyed by coco_image_id from InferenceMetadata
+        # Extract results (keyed by coco_image_id=1 from InferenceMetadata)
         if not results or 1 not in results:
-            # No detections found
-            return FindAllResult(
-                masks=np.array([], dtype=np.uint8).reshape(0, image.height, image.width),
-                scores=np.array([], dtype=np.float32),
-                bboxes=[],
-            )
+            return FindAllResult.empty(image.height, image.width)
 
         result_data = results[1]
-        masks_data = result_data.get("masks", [])
-        scores_tensor = result_data.get("scores", torch.tensor([]))
-        boxes_tensor = result_data.get("boxes", torch.tensor([]))
-
-        # Convert masks to numpy binary format
-        # masks_data can be a list of tensors or a single stacked tensor
-        if isinstance(masks_data, torch.Tensor):
-            if masks_data.numel() > 0:
-                masks = masks_data.cpu().numpy()
-            else:
-                masks = np.array([], dtype=np.uint8).reshape(0, image.height, image.width)
-        elif masks_data:
-            # List of tensors
-            masks = torch.stack(masks_data).cpu().numpy()
-        else:
-            masks = np.array([], dtype=np.uint8).reshape(0, image.height, image.width)
-
-        # Squeeze extra dimensions - ensure shape is (num_masks, H, W)
-        if masks.size > 0:
-            while masks.ndim > 3:
-                masks = masks.squeeze(1)
-            masks = (masks > 0).astype(np.uint8) * 255
-
-        # Convert scores to numpy (convert from bfloat16 to float32 first)
-        scores = scores_tensor.float().cpu().numpy().astype(np.float32)
-
-        # Convert boxes from xyxy to xywh format
-        bboxes = []
-        if boxes_tensor.numel() > 0:
-            boxes_np = boxes_tensor.float().cpu().numpy()
-            for x1, y1, x2, y2 in boxes_np:
-                bboxes.append((int(x1), int(y1), int(x2 - x1), int(y2 - y1)))
+        masks = self._normalize_mask_output(
+            result_data.get("masks", []), image.height, image.width
+        )
+        scores = result_data.get("scores", torch.tensor([])).float().cpu().numpy().astype(np.float32)
+        bboxes = self._boxes_xyxy_to_xywh(result_data.get("boxes", torch.tensor([])))
 
         logger.info(f"Find-all discovered {len(bboxes)} objects with threshold {detection_threshold}")
         return FindAllResult(masks=masks, scores=scores, bboxes=bboxes)
