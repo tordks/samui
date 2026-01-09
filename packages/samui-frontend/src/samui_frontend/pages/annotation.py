@@ -356,7 +356,7 @@ def _render_find_all_controls(current_image: dict) -> PromptType:
         # Save if changed
         if new_prompt != current_prompt:
             if _update_image_text_prompt(current_image["id"], new_prompt):
-                st.success("Text prompt saved!", icon="✓")
+                st.success("Text prompt saved!", icon="✅")
             else:
                 st.error("Failed to save text prompt")
 
