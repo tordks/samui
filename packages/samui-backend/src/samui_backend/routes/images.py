@@ -12,6 +12,7 @@ from samui_backend.db.models import Image
 from samui_backend.dependencies import get_storage_service
 from samui_backend.schemas import ImageList, ImageResponse, ImageUpdate
 from samui_backend.services.storage import StorageService
+from samui_backend.utils import get_image_content_type
 
 logger = logging.getLogger(__name__)
 
@@ -106,10 +107,8 @@ def get_image_data(
         raise HTTPException(status_code=500, detail=f"Failed to retrieve image: {e}")
 
     # Determine content type from filename
-    extension = image.filename.rsplit(".", 1)[-1].lower() if "." in image.filename else "jpg"
-    content_type = f"image/{extension}"
-    if extension == "jpg":
-        content_type = "image/jpeg"
+    extension = image.filename.rsplit(".", 1)[-1] if "." in image.filename else "jpg"
+    content_type = get_image_content_type(extension)
 
     return Response(content=data, media_type=content_type)
 

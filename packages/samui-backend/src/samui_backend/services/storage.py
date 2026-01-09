@@ -7,6 +7,7 @@ from azure.storage.blob import BlobServiceClient, ContentSettings
 from PIL import Image
 
 from samui_backend.config import settings
+from samui_backend.utils import get_image_content_type
 
 
 class StorageService:
@@ -43,9 +44,7 @@ class StorageService:
         blob_path = f"images/{uuid.uuid4()}.{extension}"
 
         # Determine content type
-        content_type = f"image/{extension.lower()}"
-        if extension.lower() == "jpg":
-            content_type = "image/jpeg"
+        content_type = get_image_content_type(extension)
 
         # Upload to blob storage
         blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)

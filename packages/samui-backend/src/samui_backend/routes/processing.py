@@ -25,6 +25,7 @@ from samui_backend.db.models import (
 from samui_backend.dependencies import get_sam3_service, get_storage_service
 from samui_backend.schemas import ProcessRequest, ProcessResponse, ProcessStatus
 from samui_backend.services import SAM3Service, StorageService, generate_coco_json
+from samui_backend.utils import get_blob_path_suffix
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ def _save_mask_to_storage(
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
 ) -> str:
     """Save combined mask image to storage."""
-    mode_suffix = f"_{mode.value}" if mode != SegmentationMode.INSIDE_BOX else ""
+    mode_suffix = get_blob_path_suffix(mode)
     mask_blob_path = f"masks/{image_id}{mode_suffix}.png"
     combined_mask = np.zeros((masks.shape[1], masks.shape[2]), dtype=np.uint8)
     for mask in masks:
@@ -72,7 +73,7 @@ def _save_coco_to_storage(
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
 ) -> str:
     """Generate and save COCO JSON to storage."""
-    mode_suffix = f"_{mode.value}" if mode != SegmentationMode.INSIDE_BOX else ""
+    mode_suffix = get_blob_path_suffix(mode)
     coco_blob_path = f"coco/{image.id}{mode_suffix}.json"
     coco_json = generate_coco_json(
         image_id=image.id,
