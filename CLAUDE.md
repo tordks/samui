@@ -95,6 +95,31 @@ Monorepo with isolated packages:
 - Database tables auto-created on startup via lifespan context manager
 - SAM3 model uses lazy loading (`load_model()` before inference, `unload_model()` to free GPU)
 
+## Segmentation Modes
+
+The application supports two segmentation modes, each with distinct annotation types and processing methods:
+
+### Inside Box Mode (default)
+- User draws bounding boxes (prompt_type=SEGMENT)
+- SAM3 segments objects within each box using `process_image()` with interactive API
+- One mask per annotation
+
+### Find All Mode
+- User provides text prompt (stored on Image.text_prompt) and/or exemplar boxes
+- Annotations use prompt_type=POSITIVE_EXEMPLAR or NEGATIVE_EXEMPLAR
+- SAM3 discovers all matching instances using `process_image_find_all()` with batched API
+- Creates new annotations (source=MODEL) for discovered objects
+
+**Key data model fields:**
+- `Annotation.prompt_type` - SEGMENT, POSITIVE_EXEMPLAR, or NEGATIVE_EXEMPLAR
+- `Annotation.source` - USER or MODEL (model-generated from find-all)
+- `Image.text_prompt` - Text description for find-all mode
+- `ProcessingResult.mode` - INSIDE_BOX or FIND_ALL (unique per image+mode)
+
+**Frontend session state:**
+- Both annotation and processing pages share `segmentation_mode` in session state
+- Mode affects which annotations are fetched, displayed, and processed
+
 ## Environment Variables
 
 Key variables in `.env.example`:
