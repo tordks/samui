@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Default query text when only visual exemplars are provided (no text prompt)
+DEFAULT_VISUAL_QUERY = "visual"
+
 
 @dataclass
 class FindAllResult:
@@ -183,8 +186,8 @@ class SAM3Service:
         # Create the image wrapper
         sam_image = SAMImage(data=image, objects=[], size=[h, w])
 
-        # Determine query text - use "visual" if only boxes provided
-        query_text = text_prompt if text_prompt else "visual"
+        # Determine query text - use default if only boxes provided
+        query_text = text_prompt if text_prompt else DEFAULT_VISUAL_QUERY
 
         # Build box tensors if exemplars provided
         input_bbox = None
