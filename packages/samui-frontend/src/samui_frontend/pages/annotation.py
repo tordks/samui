@@ -27,6 +27,13 @@ class PromptType(StrEnum):
     NEGATIVE_EXEMPLAR = "negative_exemplar"
 
 
+class AnnotationSource(StrEnum):
+    """Source of an annotation."""
+
+    USER = "user"
+    MODEL = "model"
+
+
 # Color palette for bounding boxes (matches bbox_annotator)
 BBOX_COLORS = [
     "#ff4b4b",  # red
@@ -76,10 +83,13 @@ def _fetch_annotations(image_id: str, mode: SegmentationMode | None = None) -> l
             return response.json().get("annotations", [])
 
         if mode == SegmentationMode.INSIDE_BOX:
-            # Fetch only SEGMENT annotations
+            # Fetch only user-created SEGMENT annotations (exclude model-generated)
             response = httpx.get(
                 f"{API_URL}/annotations/{image_id}",
-                params={"prompt_type": PromptType.SEGMENT.value},
+                params={
+                    "prompt_type": PromptType.SEGMENT.value,
+                    "source": AnnotationSource.USER.value,
+                },
                 timeout=10.0,
             )
             response.raise_for_status()
