@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
 from samui_backend.db.models import Image
-from samui_backend.schemas import ImageList, ImageResponse
+from samui_backend.schemas import ImageList, ImageResponse, ImageUpdate
 from samui_backend.services.storage import StorageService
 
 router = APIRouter(prefix="/images", tags=["images"])
@@ -73,6 +73,25 @@ def get_image(image_id: uuid.UUID, db: Session = Depends(get_db)) -> Image:
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
+    return image
+
+
+@router.patch("/{image_id}", response_model=ImageResponse)
+def update_image(
+    image_id: uuid.UUID,
+    update: ImageUpdate,
+    db: Session = Depends(get_db),
+) -> Image:
+    """Update image metadata."""
+    image = db.query(Image).filter(Image.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    if update.text_prompt is not None:
+        image.text_prompt = update.text_prompt
+
+    db.commit()
+    db.refresh(image)
     return image
 
 

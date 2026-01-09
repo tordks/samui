@@ -286,6 +286,172 @@ class TestDeleteAnnotation:
         assert response.status_code == 404
 
 
+class TestAnnotationPromptType:
+    """Tests for annotation prompt_type and source fields."""
+
+    def test_create_annotation_default_prompt_type(
+        self, client: TestClient, mock_storage: MagicMock
+    ) -> None:
+        """Test that annotation defaults to SEGMENT prompt_type."""
+        image_id = upload_test_image(client)
+
+        response = client.post(
+            "/annotations",
+            json={
+                "image_id": image_id,
+                "bbox_x": 10,
+                "bbox_y": 20,
+                "bbox_width": 30,
+                "bbox_height": 40,
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["prompt_type"] == "segment"
+        assert data["source"] == "user"
+
+    def test_create_annotation_with_positive_exemplar(
+        self, client: TestClient, mock_storage: MagicMock
+    ) -> None:
+        """Test creating annotation with positive_exemplar prompt_type."""
+        image_id = upload_test_image(client)
+
+        response = client.post(
+            "/annotations",
+            json={
+                "image_id": image_id,
+                "bbox_x": 10,
+                "bbox_y": 20,
+                "bbox_width": 30,
+                "bbox_height": 40,
+                "prompt_type": "positive_exemplar",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["prompt_type"] == "positive_exemplar"
+        assert data["source"] == "user"
+
+    def test_create_annotation_with_negative_exemplar(
+        self, client: TestClient, mock_storage: MagicMock
+    ) -> None:
+        """Test creating annotation with negative_exemplar prompt_type."""
+        image_id = upload_test_image(client)
+
+        response = client.post(
+            "/annotations",
+            json={
+                "image_id": image_id,
+                "bbox_x": 10,
+                "bbox_y": 20,
+                "bbox_width": 30,
+                "bbox_height": 40,
+                "prompt_type": "negative_exemplar",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["prompt_type"] == "negative_exemplar"
+        assert data["source"] == "user"
+
+    def test_get_annotations_filtered_by_prompt_type(
+        self, client: TestClient, mock_storage: MagicMock
+    ) -> None:
+        """Test filtering annotations by prompt_type."""
+        image_id = upload_test_image(client)
+
+        # Create annotations with different prompt_types
+        client.post(
+            "/annotations",
+            json={
+                "image_id": image_id,
+                "bbox_x": 10,
+                "bbox_y": 10,
+                "bbox_width": 20,
+                "bbox_height": 20,
+                "prompt_type": "segment",
+            },
+        )
+        client.post(
+            "/annotations",
+            json={
+                "image_id": image_id,
+                "bbox_x": 40,
+                "bbox_y": 40,
+                "bbox_width": 20,
+                "bbox_height": 20,
+                "prompt_type": "positive_exemplar",
+            },
+        )
+        client.post(
+            "/annotations",
+            json={
+                "image_id": image_id,
+                "bbox_x": 70,
+                "bbox_y": 10,
+                "bbox_width": 20,
+                "bbox_height": 20,
+                "prompt_type": "positive_exemplar",
+            },
+        )
+
+        # Get all annotations
+        response = client.get(f"/annotations/{image_id}")
+        assert response.json()["total"] == 3
+
+        # Filter by segment
+        response = client.get(f"/annotations/{image_id}?prompt_type=segment")
+        assert response.json()["total"] == 1
+        assert response.json()["annotations"][0]["prompt_type"] == "segment"
+
+        # Filter by positive_exemplar
+        response = client.get(f"/annotations/{image_id}?prompt_type=positive_exemplar")
+        assert response.json()["total"] == 2
+
+
+class TestImageTextPrompt:
+    """Tests for image text_prompt field."""
+
+    def test_image_text_prompt_default_none(
+        self, client: TestClient, mock_storage: MagicMock
+    ) -> None:
+        """Test that image text_prompt defaults to None."""
+        image_id = upload_test_image(client)
+
+        response = client.get(f"/images/{image_id}")
+        assert response.json()["text_prompt"] is None
+
+    def test_update_image_text_prompt(
+        self, client: TestClient, mock_storage: MagicMock
+    ) -> None:
+        """Test updating image text_prompt via PATCH."""
+        image_id = upload_test_image(client)
+
+        response = client.patch(
+            f"/images/{image_id}",
+            json={"text_prompt": "Find all cats"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["text_prompt"] == "Find all cats"
+
+        # Verify persisted
+        get_response = client.get(f"/images/{image_id}")
+        assert get_response.json()["text_prompt"] == "Find all cats"
+
+    def test_update_image_text_prompt_not_found(self, client: TestClient) -> None:
+        """Test updating text_prompt for non-existent image."""
+        response = client.patch(
+            "/images/00000000-0000-0000-0000-000000000000",
+            json={"text_prompt": "Find all cats"},
+        )
+
+        assert response.status_code == 404
+
+
 class TestImageStatusUpdate:
     """Tests for image status update on annotation creation."""
 

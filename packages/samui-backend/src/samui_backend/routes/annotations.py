@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
-from samui_backend.db.models import Annotation, Image, ProcessingStatus
+from samui_backend.db.models import Annotation, Image, ProcessingStatus, PromptType
 from samui_backend.schemas import AnnotationCreate, AnnotationList, AnnotationResponse
 
 router = APIRouter(prefix="/annotations", tags=["annotations"])
@@ -43,6 +43,7 @@ def create_annotation(
         bbox_y=annotation.bbox_y,
         bbox_width=annotation.bbox_width,
         bbox_height=annotation.bbox_height,
+        prompt_type=annotation.prompt_type,
     )
     db.add(db_annotation)
 
@@ -59,20 +60,20 @@ def create_annotation(
 @router.get("/{image_id}", response_model=AnnotationList)
 def get_annotations(
     image_id: uuid.UUID,
+    prompt_type: PromptType | None = None,
     db: Session = Depends(get_db),
 ) -> dict:
-    """Get all annotations for an image."""
+    """Get all annotations for an image, optionally filtered by prompt_type."""
     # Verify image exists
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    annotations = (
-        db.query(Annotation)
-        .filter(Annotation.image_id == image_id)
-        .order_by(Annotation.created_at.asc())
-        .all()
-    )
+    query = db.query(Annotation).filter(Annotation.image_id == image_id)
+    if prompt_type is not None:
+        query = query.filter(Annotation.prompt_type == prompt_type)
+
+    annotations = query.order_by(Annotation.created_at.asc()).all()
     return {"annotations": annotations, "total": len(annotations)}
 
 

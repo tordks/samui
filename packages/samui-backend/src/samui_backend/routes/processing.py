@@ -52,9 +52,7 @@ def get_sam3_service() -> SAM3Service:
     return _sam3_service
 
 
-def _save_mask_to_storage(
-    storage: StorageService, masks: NDArray[np.uint8], image_id: uuid.UUID
-) -> str:
+def _save_mask_to_storage(storage: StorageService, masks: NDArray[np.uint8], image_id: uuid.UUID) -> str:
     """Save combined mask image to storage."""
     mask_blob_path = f"masks/{image_id}.png"
     combined_mask = np.zeros((masks.shape[1], masks.shape[2]), dtype=np.uint8)
@@ -66,9 +64,7 @@ def _save_mask_to_storage(
     mask_image.save(mask_buffer, format="PNG")
     mask_bytes = mask_buffer.getvalue()
 
-    blob_client = storage._client.get_blob_client(
-        container=storage._container_name, blob=mask_blob_path
-    )
+    blob_client = storage._client.get_blob_client(container=storage._container_name, blob=mask_blob_path)
     blob_client.upload_blob(mask_bytes, overwrite=True)
     return mask_blob_path
 
@@ -90,9 +86,7 @@ def _save_coco_to_storage(
         masks=masks,
     )
     coco_bytes = json.dumps(coco_json, indent=2).encode("utf-8")
-    blob_client = storage._client.get_blob_client(
-        container=storage._container_name, blob=coco_blob_path
-    )
+    blob_client = storage._client.get_blob_client(container=storage._container_name, blob=coco_blob_path)
     blob_client.upload_blob(coco_bytes, overwrite=True)
     return coco_blob_path
 
@@ -120,10 +114,7 @@ def _process_single_image(
         db.commit()
         return False
 
-    bboxes = [
-        (ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height)
-        for ann in annotations
-    ]
+    bboxes = [(ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height) for ann in annotations]
 
     masks = sam3.process_image(pil_image, bboxes)
     mask_blob_path = _save_mask_to_storage(storage, masks, image.id)
@@ -172,11 +163,7 @@ def _process_images_background(
             _processing_state["current_image_id"] = image_id
             _processing_state["current_image_filename"] = image.filename
 
-            existing_result = (
-                db.query(ProcessingResult)
-                .filter(ProcessingResult.image_id == image_id)
-                .first()
-            )
+            existing_result = db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id).first()
 
             if _is_already_processed(image, existing_result):
                 logger.info(f"Image {image_id} already processed, skipping")
@@ -187,9 +174,7 @@ def _process_images_background(
             db.commit()
 
             try:
-                _process_single_image(
-                    db, storage, sam3, image, batch_id, existing_result
-                )
+                _process_single_image(db, storage, sam3, image, batch_id, existing_result)
             except Exception as e:
                 logger.error(f"Error processing image {image_id}: {e}")
                 db.rollback()
@@ -250,9 +235,7 @@ def start_processing(
         image = db.query(Image).filter(Image.id == image_id).first()
         if image:
             # Check if image has annotations
-            annotation_count = (
-                db.query(Annotation).filter(Annotation.image_id == image_id).count()
-            )
+            annotation_count = db.query(Annotation).filter(Annotation.image_id == image_id).count()
             if annotation_count > 0:
                 valid_image_ids.append(image_id)
 
@@ -321,22 +304,14 @@ def get_mask(
     """
     from fastapi.responses import Response
 
-    result = (
-        db.query(ProcessingResult)
-        .filter(ProcessingResult.image_id == image_id)
-        .first()
-    )
+    result = db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id).first()
     if not result or not result.mask_blob_path:
-        raise HTTPException(
-            status_code=404, detail="Mask not found for this image"
-        )
+        raise HTTPException(status_code=404, detail="Mask not found for this image")
 
     try:
         mask_bytes = storage.get_image(result.mask_blob_path)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve mask: {e}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve mask: {e}")
 
     return Response(content=mask_bytes, media_type="image/png")
 
@@ -367,29 +342,19 @@ def export_coco_json(
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    result = (
-        db.query(ProcessingResult)
-        .filter(ProcessingResult.image_id == image_id)
-        .first()
-    )
+    result = db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id).first()
     if not result:
-        raise HTTPException(
-            status_code=404, detail="Image has not been processed yet"
-        )
+        raise HTTPException(status_code=404, detail="Image has not been processed yet")
 
     # Fetch COCO JSON from storage
     try:
         coco_bytes = storage.get_image(result.coco_json_blob_path)
         coco_json = json.loads(coco_bytes.decode("utf-8"))
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve COCO JSON: {e}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve COCO JSON: {e}")
 
     # Return as downloadable JSON with filename
     return JSONResponse(
         content=coco_json,
-        headers={
-            "Content-Disposition": f'attachment; filename="{image.filename.rsplit(".", 1)[0]}_coco.json"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="{image.filename.rsplit(".", 1)[0]}_coco.json"'},
     )

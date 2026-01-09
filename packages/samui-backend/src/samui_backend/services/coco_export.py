@@ -86,14 +86,12 @@ def generate_coco_json(
     }
 
     # Add image info
-    coco["images"].append(
-        {
-            "id": str(image_id),
-            "file_name": filename,
-            "width": width,
-            "height": height,
-        }
-    )
+    coco["images"].append({
+        "id": str(image_id),
+        "file_name": filename,
+        "width": width,
+        "height": height,
+    })
 
     # Add annotations
     for idx, (bbox, mask) in enumerate(zip(bboxes, masks)):

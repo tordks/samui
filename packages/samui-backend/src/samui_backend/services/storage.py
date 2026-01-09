@@ -14,9 +14,7 @@ class StorageService:
 
     def __init__(self) -> None:
         """Initialize the storage service."""
-        self._client = BlobServiceClient.from_connection_string(
-            settings.azure_storage_connection_string
-        )
+        self._client = BlobServiceClient.from_connection_string(settings.azure_storage_connection_string)
         self._container_name = settings.azure_container_name
         self._ensure_container_exists()
 
@@ -50,9 +48,7 @@ class StorageService:
             content_type = "image/jpeg"
 
         # Upload to blob storage
-        blob_client = self._client.get_blob_client(
-            container=self._container_name, blob=blob_path
-        )
+        blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)
         blob_client.upload_blob(
             file_content,
             overwrite=True,
@@ -70,9 +66,7 @@ class StorageService:
         Returns:
             Raw image bytes.
         """
-        blob_client = self._client.get_blob_client(
-            container=self._container_name, blob=blob_path
-        )
+        blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)
         return blob_client.download_blob().readall()
 
     def get_image_url(self, blob_path: str) -> str:
@@ -84,9 +78,7 @@ class StorageService:
         Returns:
             URL to access the image.
         """
-        blob_client = self._client.get_blob_client(
-            container=self._container_name, blob=blob_path
-        )
+        blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)
         return blob_client.url
 
     def delete_image(self, blob_path: str) -> None:
@@ -95,7 +87,5 @@ class StorageService:
         Args:
             blob_path: Path to the blob.
         """
-        blob_client = self._client.get_blob_client(
-            container=self._container_name, blob=blob_path
-        )
+        blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)
         blob_client.delete_blob(delete_snapshots="include")

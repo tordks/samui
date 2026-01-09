@@ -5,7 +5,12 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from samui_backend.db.models import ProcessingStatus
+from samui_backend.db.models import (
+    AnnotationSource,
+    ProcessingStatus,
+    PromptType,
+    SegmentationMode,
+)
 
 
 class ImageCreate(BaseModel):
@@ -29,6 +34,13 @@ class ImageResponse(BaseModel):
     height: int
     created_at: datetime
     processing_status: ProcessingStatus
+    text_prompt: str | None = None
+
+
+class ImageUpdate(BaseModel):
+    """Schema for updating an image."""
+
+    text_prompt: str | None = None
 
 
 class ImageList(BaseModel):
@@ -46,6 +58,7 @@ class AnnotationCreate(BaseModel):
     bbox_y: int
     bbox_width: int
     bbox_height: int
+    prompt_type: PromptType = PromptType.SEGMENT
 
 
 class AnnotationResponse(BaseModel):
@@ -59,6 +72,8 @@ class AnnotationResponse(BaseModel):
     bbox_y: int
     bbox_width: int
     bbox_height: int
+    prompt_type: PromptType
+    source: AnnotationSource
     created_at: datetime
 
 
@@ -73,6 +88,7 @@ class ProcessRequest(BaseModel):
     """Schema for requesting processing of images."""
 
     image_ids: list[uuid.UUID]
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX
 
 
 class ProcessResponse(BaseModel):
@@ -102,6 +118,7 @@ class ProcessingResultResponse(BaseModel):
 
     id: uuid.UUID
     image_id: uuid.UUID
+    mode: SegmentationMode
     mask_blob_path: str
     coco_json_blob_path: str
     processed_at: datetime

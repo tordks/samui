@@ -8,32 +8,32 @@
 
 **Tasks:**
 
-- [ ] [P1.1] Add `PromptType` enum to `models.py` with values: `SEGMENT`, `POSITIVE_EXEMPLAR`, `NEGATIVE_EXEMPLAR`
-- [ ] [P1.2] Add `AnnotationSource` enum to `models.py` with values: `USER`, `MODEL`
-- [ ] [P1.3] Add `SegmentationMode` enum to `models.py` with values: `INSIDE_BOX`, `FIND_ALL`
-- [ ] [P1.4] Add `prompt_type` field to `Annotation` model (default=SEGMENT for backward compatibility)
-- [ ] [P1.5] Add `source` field to `Annotation` model (default=USER for backward compatibility)
-- [ ] [P1.6] Add `text_prompt` field to `Image` model (nullable string for find-all mode)
-- [ ] [P1.7] Add `mode` field to `ProcessingResult` model (default=INSIDE_BOX for backward compatibility)
-- [ ] [P1.8] Change `ProcessingResult` unique constraint from `image_id` to `(image_id, mode)`
-- [ ] [P1.9] Update `schemas.py` with new enums and fields in request/response models
+- [x] [P1.1] Add `PromptType` enum to `models.py` with values: `SEGMENT`, `POSITIVE_EXEMPLAR`, `NEGATIVE_EXEMPLAR`
+- [x] [P1.2] Add `AnnotationSource` enum to `models.py` with values: `USER`, `MODEL`
+- [x] [P1.3] Add `SegmentationMode` enum to `models.py` with values: `INSIDE_BOX`, `FIND_ALL`
+- [x] [P1.4] Add `prompt_type` field to `Annotation` model (default=SEGMENT for backward compatibility)
+- [x] [P1.5] Add `source` field to `Annotation` model (default=USER for backward compatibility)
+- [x] [P1.6] Add `text_prompt` field to `Image` model (nullable string for find-all mode)
+- [x] [P1.7] Add `mode` field to `ProcessingResult` model (default=INSIDE_BOX for backward compatibility)
+- [x] [P1.8] Change `ProcessingResult` unique constraint from `image_id` to `(image_id, mode)`
+- [x] [P1.9] Update `schemas.py` with new enums and fields in request/response models
   - Add `PromptType`, `AnnotationSource`, `SegmentationMode` enums
   - Update `AnnotationCreate` with optional `prompt_type` field
   - Update `AnnotationResponse` with `prompt_type` and `source` fields
   - Update `ImageResponse` with `text_prompt` field
   - Update `ProcessRequest` with `mode` field
   - Update `ProcessingResultResponse` with `mode` field
-- [ ] [P1.10] Add endpoint to update image text_prompt in `routes/images.py`
+- [x] [P1.10] Add endpoint to update image text_prompt in `routes/images.py`
   - `PATCH /images/{image_id}` accepting `{"text_prompt": "..."}`
-- [ ] [P1.11] Update `routes/annotations.py` to accept and return new fields
-- [ ] [P1.12] Write tests for new annotation fields in `test_api_annotations.py`
-- [ ] [P1.13] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/test_api_annotations.py -v`
+- [x] [P1.11] Update `routes/annotations.py` to accept and return new fields
+- [x] [P1.12] Write tests for new annotation fields in `test_api_annotations.py`
+- [x] [P1.13] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/test_api_annotations.py -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/`
-- [ ] Code format: Run `uvx ruff format packages/samui-backend/ --check`
-- [ ] Review: Verify all model changes are backward compatible with defaults
+- [x] Code quality: Run `uvx ruff check packages/samui-backend/`
+- [x] Code format: Run `uvx ruff format packages/samui-backend/ --check`
+- [x] Review: Verify all model changes are backward compatible with defaults
 
 **Phase 1 Complete:** Data models extended with prompt_type, source, mode fields. Existing data remains valid through defaults. API accepts and returns new fields.
 
@@ -83,8 +83,8 @@
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/`
-- [ ] Code format: Run `uvx ruff format packages/samui-backend/ --check`
+- [ ] Code quality: Run `uvx ruff check packages/samui-backend/src/samui_backend/services/sam3_inference.py tests/test_sam3_inference.py`
+- [ ] Code format: Run `uvx ruff format packages/samui-backend/src/samui_backend/services/sam3_inference.py tests/test_sam3_inference.py --check`
 - [ ] Review: Verify method signature matches plan, error handling is complete
 
 **Phase 2 Complete:** SAM3Service has working find-all method. Batched API components properly integrated. Method tested with mocks.
@@ -129,8 +129,8 @@
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/`
-- [ ] Code format: Run `uvx ruff format packages/samui-backend/ --check`
+- [ ] Code quality: Run `uvx ruff check packages/samui-backend/src/samui_backend/routes/processing.py tests/test_api_processing.py`
+- [ ] Code format: Run `uvx ruff format packages/samui-backend/src/samui_backend/routes/processing.py tests/test_api_processing.py --check`
 - [ ] Review: Verify backward compatibility - existing inside_box flow unchanged
 
 **Phase 3 Complete:** Processing API supports both modes. Find-all creates annotations from discoveries. Mode-specific results tracked independently.
@@ -173,8 +173,8 @@
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/`
-- [ ] Code format: Run `uvx ruff format packages/samui-frontend/ --check`
+- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/src/samui_frontend/pages/annotation.py packages/samui-frontend/src/samui_frontend/components/bbox_annotator.py`
+- [ ] Code format: Run `uvx ruff format packages/samui-frontend/src/samui_frontend/pages/annotation.py packages/samui-frontend/src/samui_frontend/components/bbox_annotator.py --check`
 - [ ] Review: Test both modes manually, verify UI is intuitive
 
 **Phase 4 Complete:** Annotation page supports both modes. Users can draw positive/negative exemplars with right-click. Text prompts saved per image.
@@ -207,8 +207,8 @@
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/`
-- [ ] Code format: Run `uvx ruff format packages/samui-frontend/ --check`
+- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/src/samui_frontend/pages/processing.py packages/samui-frontend/src/samui_frontend/components/image_gallery.py`
+- [ ] Code format: Run `uvx ruff format packages/samui-frontend/src/samui_frontend/pages/processing.py packages/samui-frontend/src/samui_frontend/components/image_gallery.py --check`
 - [ ] Review: Test complete workflow, verify mode switching is smooth
 
 **Phase 5 Complete:** Processing page fully supports both modes. Gallery shows mode-relevant annotations. Batch processing works with selected mode.

@@ -44,16 +44,12 @@ class SAM3Service:
         bpe_path = os.path.join(os.path.dirname(sam3.__file__), "assets", "bpe_simple_vocab_16e6.txt.gz")
 
         # Build model with instance interactivity for predict_inst
-        self._model = build_sam3_image_model(
-            bpe_path=bpe_path, enable_inst_interactivity=True
-        )
+        self._model = build_sam3_image_model(bpe_path=bpe_path, enable_inst_interactivity=True)
         self._processor = Sam3Processor(self._model)
 
         logger.info("SAM3 model loaded successfully")
 
-    def process_image(
-        self, image: Image.Image, bboxes: list[tuple[int, int, int, int]]
-    ) -> NDArray[np.uint8]:
+    def process_image(self, image: Image.Image, bboxes: list[tuple[int, int, int, int]]) -> NDArray[np.uint8]:
         """Process an image with bounding box prompts to generate segmentation masks.
 
         Args:
@@ -76,9 +72,7 @@ class SAM3Service:
         inference_state = self._processor.set_image(image)
 
         # Convert bboxes from xywh to xyxy format for predict_inst
-        input_boxes = np.array(
-            [[x, y, x + w, y + h] for x, y, w, h in bboxes], dtype=np.float32
-        )
+        input_boxes = np.array([[x, y, x + w, y + h] for x, y, w, h in bboxes], dtype=np.float32)
 
         # Run inference with batched boxes
         with torch.inference_mode():
