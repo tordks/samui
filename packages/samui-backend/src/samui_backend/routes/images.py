@@ -1,5 +1,6 @@
 """Image upload, list, and delete endpoints."""
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -9,6 +10,8 @@ from samui_backend.db.database import get_db
 from samui_backend.db.models import Image
 from samui_backend.schemas import ImageList, ImageResponse, ImageUpdate
 from samui_backend.services.storage import StorageService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/images", tags=["images"])
 
@@ -136,9 +139,8 @@ def delete_image(
     # Delete from storage
     try:
         storage.delete_image(image.blob_path)
-    except Exception:
-        # Log but continue with DB deletion
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to delete blob {image.blob_path}: {e}")
 
     # Delete from database
     db.delete(image)

@@ -7,7 +7,6 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from samui_backend.config import settings
 
-
 engine = create_engine(settings.database_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
