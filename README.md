@@ -187,3 +187,8 @@ uv add <package>
 - Make os.path -> pathlib throughout codebase
 - Make sure to use dataclasses instead of dicts where appropriate
 - GPU hardware detection and conditionals for CUDA/CPU
+- Replace rectangle drawing component to be able to see live-drawing of bboxes
+- 
+- Add text prompts alongside bbox prompts
+- Add SAM 1 style point prompts
+- 
