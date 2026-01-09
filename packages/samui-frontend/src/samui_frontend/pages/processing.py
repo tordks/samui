@@ -2,7 +2,6 @@
 
 import io
 import json
-import time
 
 import streamlit as st
 from PIL import Image, ImageDraw
@@ -190,6 +189,36 @@ def _get_annotation_badge(image: dict, mode: SegmentationMode) -> str:
         return ", ".join(parts) if parts else "No prompts"
 
 
+@st.fragment(run_every=1)
+def _render_processing_status(mode: SegmentationMode, ready_count: int) -> None:
+    """Fragment that polls processing status with auto-refresh.
+
+    Using @st.fragment(run_every=1) allows this component to refresh
+    every second without blocking the main UI or causing a full page rerun.
+    """
+    mode_label = "Inside Box" if mode == SegmentationMode.INSIDE_BOX else "Find All"
+    status = get_processing_status()
+
+    if status and status.get("is_running"):
+        processed = status.get("processed_count", 0)
+        total = status.get("total_count", 0)
+        current_filename = status.get("current_image_filename", "")
+
+        progress = processed / total if total > 0 else 0
+        st.progress(progress, f"Processing ({mode_label}): {processed} of {total} ({current_filename})")
+    elif status and status.get("error"):
+        st.error(f"Processing failed: {status.get('error')}")
+    elif status and status.get("batch_id") and status.get("processed_count", 0) > 0:
+        st.success(f"Processing complete! {status.get('processed_count')} images processed.")
+    elif ready_count == 0:
+        if mode == SegmentationMode.INSIDE_BOX:
+            st.info("No images with segment boxes. Add annotations first.")
+        else:
+            st.info("No images with text prompts or exemplars. Add prompts first.")
+    else:
+        st.info(f"{ready_count} images ready for {mode_label} processing.")
+
+
 def _render_process_controls(
     ready_images: list[dict],
     processed_images: list[dict],
@@ -233,29 +262,7 @@ def _render_process_controls(
             st.button("Download All COCO", disabled=True)
 
     with col3:
-        status = get_processing_status()
-        if status and status.get("is_running"):
-            processed = status.get("processed_count", 0)
-            total = status.get("total_count", 0)
-            current_filename = status.get("current_image_filename", "")
-
-            progress = processed / total if total > 0 else 0
-            st.progress(progress, f"Processing ({mode_label}): {processed} of {total} ({current_filename})")
-
-            # Auto-refresh while processing
-            time.sleep(1)
-            st.rerun()
-        elif status and status.get("error"):
-            st.error(f"Processing failed: {status.get('error')}")
-        elif status and status.get("batch_id") and status.get("processed_count", 0) > 0:
-            st.success(f"Processing complete! {status.get('processed_count')} images processed.")
-        elif len(ready_images) == 0:
-            if mode == SegmentationMode.INSIDE_BOX:
-                st.info("No images with segment boxes. Add annotations first.")
-            else:
-                st.info("No images with text prompts or exemplars. Add prompts first.")
-        else:
-            st.info(f"{len(ready_images)} images ready for {mode_label} processing.")
+        _render_processing_status(mode, len(ready_images))
 
 
 def _render_processed_gallery(images: list[dict], mode: SegmentationMode) -> None:
