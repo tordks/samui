@@ -94,7 +94,7 @@ def generate_coco_json(
     })
 
     # Add annotations
-    for idx, (bbox, mask) in enumerate(zip(bboxes, masks)):
+    for idx, (bbox, mask) in enumerate(zip(bboxes, masks, strict=True)):
         x, y, w, h = bbox
 
         # Compute segmentation RLE and area from mask

@@ -224,7 +224,7 @@ class SAM3Service:
 
         return Datapoint(images=[sam_image], find_queries=[find_query])
 
-    def process_image_find_all(
+    def process_image_find_all(  # noqa: C901 - complexity from model output edge cases
         self,
         image: Image.Image,
         text_prompt: str | None = None,

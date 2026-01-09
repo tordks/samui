@@ -1,9 +1,9 @@
 """Shared enums for the application."""
 
-import enum
+from enum import StrEnum
 
 
-class ProcessingStatus(str, enum.Enum):
+class ProcessingStatus(StrEnum):
     """Processing status for images."""
 
     PENDING = "pending"
@@ -12,7 +12,7 @@ class ProcessingStatus(str, enum.Enum):
     PROCESSED = "processed"
 
 
-class PromptType(str, enum.Enum):
+class PromptType(StrEnum):
     """Type of annotation prompt for segmentation."""
 
     SEGMENT = "segment"
@@ -20,14 +20,14 @@ class PromptType(str, enum.Enum):
     NEGATIVE_EXEMPLAR = "negative_exemplar"
 
 
-class AnnotationSource(str, enum.Enum):
+class AnnotationSource(StrEnum):
     """Source of an annotation."""
 
     USER = "user"
     MODEL = "model"
 
 
-class SegmentationMode(str, enum.Enum):
+class SegmentationMode(StrEnum):
     """Segmentation mode for processing."""
 
     INSIDE_BOX = "inside_box"

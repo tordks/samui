@@ -11,7 +11,7 @@ from samui_backend.routes import annotations_router, images_router, processing_r
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: create database tables on startup."""
     Base.metadata.create_all(bind=engine)
     yield

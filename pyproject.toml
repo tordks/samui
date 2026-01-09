@@ -46,6 +46,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"] # unused imports in __init__.py
+"**/routes/*.py" = ["B008"] # FastAPI Depends/File in defaults is idiomatic
 
 [tool.ruff.lint.pylint]
 max-args = 7  # Allow up to 7 arguments in function definitions

@@ -39,7 +39,7 @@ async def upload_image(
     try:
         blob_path, width, height = storage.upload_image(content, file.filename or "image.jpg")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to upload image: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload image: {e}") from None
 
     # Save metadata to database
     image = Image(
@@ -104,7 +104,7 @@ def get_image_data(
     try:
         data = storage.get_image(image.blob_path)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve image: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve image: {e}") from None
 
     # Determine content type from filename
     extension = image.filename.rsplit(".", 1)[-1] if "." in image.filename else "jpg"
