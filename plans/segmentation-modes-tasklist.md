@@ -190,27 +190,27 @@
 
 **Tasks:**
 
-- [ ] [P5.1] Add mode toggle UI to processing page (matching annotation page style)
-- [ ] [P5.2] Update `_fetch_images()` or add helper to include annotation counts per mode
+- [x] [P5.1] Add mode toggle UI to processing page (matching annotation page style)
+- [x] [P5.2] Update `_fetch_images()` or add helper to include annotation counts per mode
   - Show badge: "3 boxes" for inside_box, "2 exemplars + text" for find_all
-- [ ] [P5.3] Update image gallery to show annotations for selected mode only
+- [x] [P5.3] Update image gallery to show annotations for selected mode only
   - Use existing `image_renderer` pattern with mode parameter
   - Different styling for segment boxes vs exemplar boxes
-- [ ] [P5.4] Update "Process" button to send selected mode in request
-- [ ] [P5.5] Update status display to show mode being processed
-- [ ] [P5.6] Update results display to be mode-aware
+- [x] [P5.4] Update "Process" button to send selected mode in request
+- [x] [P5.5] Update status display to show mode being processed
+- [x] [P5.6] Update results display to be mode-aware
   - Show which mode was used for each result
   - Allow viewing results from either mode if both exist
-- [ ] [P5.7] Add visual indicator for images without annotations for selected mode
+- [x] [P5.7] Add visual indicator for images without annotations for selected mode
   - Gray out or show "No annotations for this mode"
-- [ ] [P5.8] Manual test: full workflow for both modes
+- [x] [P5.8] Manual test: full workflow for both modes
   - Upload image → annotate (both modes) → process (each mode) → view results
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/src/samui_frontend/pages/processing.py packages/samui-frontend/src/samui_frontend/components/image_gallery.py`
-- [ ] Code format: Run `uvx ruff format packages/samui-frontend/src/samui_frontend/pages/processing.py packages/samui-frontend/src/samui_frontend/components/image_gallery.py --check`
-- [ ] Review: Test complete workflow, verify mode switching is smooth
+- [x] Code quality: Run `uvx ruff check packages/samui-frontend/src/samui_frontend/pages/processing.py packages/samui-frontend/src/samui_frontend/components/image_gallery.py`
+- [x] Code format: Run `uvx ruff format packages/samui-frontend/src/samui_frontend/pages/processing.py packages/samui-frontend/src/samui_frontend/components/image_gallery.py --check`
+- [x] Review: Test complete workflow, verify mode switching is smooth
 
 **Phase 5 Complete:** Processing page fully supports both modes. Gallery shows mode-relevant annotations. Batch processing works with selected mode.
 
