@@ -183,6 +183,7 @@ uv add <package>
 
 
 ## TODO
+- In packages/samui-frontend/src/samui_frontend/pages/annotation.py:73. A missing annotation mode should give an error?
 - Fix state. updated bbox does not update processed status
 - Progress bar update should not freeze UI
 - Make os.path -> pathlib throughout codebase

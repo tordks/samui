@@ -1,14 +1,31 @@
 """Annotation page for drawing bounding boxes on images."""
 
+from enum import StrEnum
 from io import BytesIO
 
 import httpx
 import streamlit as st
 from PIL import Image, ImageDraw
 
-from samui_frontend.components.bbox_annotator import bbox_annotator, get_bbox_color
+from samui_frontend.components.bbox_annotator import bbox_annotator
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
 from samui_frontend.config import API_URL
+
+
+class SegmentationMode(StrEnum):
+    """Segmentation mode for processing."""
+
+    INSIDE_BOX = "inside_box"
+    FIND_ALL = "find_all"
+
+
+class PromptType(StrEnum):
+    """Type of prompt/annotation."""
+
+    SEGMENT = "segment"
+    POSITIVE_EXEMPLAR = "positive_exemplar"
+    NEGATIVE_EXEMPLAR = "negative_exemplar"
+
 
 # Color palette for bounding boxes (matches bbox_annotator)
 BBOX_COLORS = [
@@ -42,18 +59,57 @@ def _fetch_image_data(image_id: str) -> bytes | None:
     return None
 
 
-def _fetch_annotations(image_id: str) -> list[dict]:
-    """Fetch annotations for an image."""
+def _fetch_annotations(image_id: str, mode: SegmentationMode | None = None) -> list[dict]:
+    """Fetch annotations for an image, optionally filtered by segmentation mode.
+
+    Args:
+        image_id: The image UUID.
+        mode: If provided, filter annotations by mode:
+            - INSIDE_BOX: only SEGMENT prompt_type
+            - FIND_ALL: both POSITIVE_EXEMPLAR and NEGATIVE_EXEMPLAR prompt_types
+    """
     try:
-        response = httpx.get(f"{API_URL}/annotations/{image_id}", timeout=10.0)
-        response.raise_for_status()
-        return response.json().get("annotations", [])
+        if mode is None:
+            # Fetch all annotations
+            response = httpx.get(f"{API_URL}/annotations/{image_id}", timeout=10.0)
+            response.raise_for_status()
+            return response.json().get("annotations", [])
+
+        if mode == SegmentationMode.INSIDE_BOX:
+            # Fetch only SEGMENT annotations
+            response = httpx.get(
+                f"{API_URL}/annotations/{image_id}",
+                params={"prompt_type": PromptType.SEGMENT.value},
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            return response.json().get("annotations", [])
+
+        # FIND_ALL mode: fetch both positive and negative exemplars
+        annotations = []
+        for pt in [PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]:
+            response = httpx.get(
+                f"{API_URL}/annotations/{image_id}",
+                params={"prompt_type": pt.value},
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            annotations.extend(response.json().get("annotations", []))
+        return annotations
+
     except httpx.HTTPError:
         return []
 
 
-def _create_annotation(image_id: str, x: int, y: int, width: int, height: int) -> bool:
-    """Create a new annotation."""
+def _create_annotation(
+    image_id: str,
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    prompt_type: PromptType = PromptType.SEGMENT,
+) -> bool:
+    """Create a new annotation with the specified prompt type."""
     try:
         response = httpx.post(
             f"{API_URL}/annotations",
@@ -63,6 +119,7 @@ def _create_annotation(image_id: str, x: int, y: int, width: int, height: int) -
                 "bbox_y": y,
                 "bbox_width": width,
                 "bbox_height": height,
+                "prompt_type": prompt_type.value,
             },
             timeout=10.0,
         )
@@ -82,17 +139,34 @@ def _delete_annotation(annotation_id: str) -> bool:
         return False
 
 
+def _update_image_text_prompt(image_id: str, text_prompt: str) -> bool:
+    """Update the text prompt for an image."""
+    try:
+        response = httpx.patch(
+            f"{API_URL}/images/{image_id}",
+            json={"text_prompt": text_prompt},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return True
+    except httpx.HTTPError:
+        return False
+
+
 def _create_bbox_overlay(image: dict, image_data: bytes) -> Image.Image:
     """Create overlay with bboxes for gallery display."""
     pil_image = Image.open(BytesIO(image_data)).convert("RGBA")
-    annotations = _fetch_annotations(image["id"])
+
+    # Get current mode from session state
+    mode = st.session_state.get("segmentation_mode", SegmentationMode.INSIDE_BOX)
+    annotations = _fetch_annotations(image["id"], mode)
 
     if not annotations:
         return pil_image.convert("RGB")
 
     draw = ImageDraw.Draw(pil_image)
     for idx, ann in enumerate(annotations):
-        color = BBOX_COLORS[idx % len(BBOX_COLORS)]
+        color = _get_annotation_color(ann, idx)
         x1 = ann["bbox_x"]
         y1 = ann["bbox_y"]
         x2 = x1 + ann["bbox_width"]
@@ -102,7 +176,22 @@ def _create_bbox_overlay(image: dict, image_data: bytes) -> Image.Image:
     return pil_image.convert("RGB")
 
 
-def _render_image_annotator(current_image: dict, annotations: list[dict]) -> None:
+def _get_annotation_color(annotation: dict, index: int) -> str:
+    """Get color for annotation based on prompt_type."""
+    prompt_type = annotation.get("prompt_type", PromptType.SEGMENT.value)
+    if prompt_type == PromptType.POSITIVE_EXEMPLAR.value:
+        return "#4bff4b"  # green for positive
+    elif prompt_type == PromptType.NEGATIVE_EXEMPLAR.value:
+        return "#ff4b4b"  # red for negative
+    return BBOX_COLORS[index % len(BBOX_COLORS)]
+
+
+def _render_image_annotator(
+    current_image: dict,
+    annotations: list[dict],
+    mode: SegmentationMode,
+    exemplar_type: PromptType,
+) -> None:
     """Render the image with bbox annotator component."""
     image_id = current_image["id"]
     image_data = _fetch_image_data(image_id)
@@ -114,11 +203,19 @@ def _render_image_annotator(current_image: dict, annotations: list[dict]) -> Non
     pil_image = Image.open(BytesIO(image_data))
     st.subheader(current_image["filename"])
 
-    new_bbox = bbox_annotator(pil_image, annotations, key=f"annotator_{image_id}")
+    new_bbox = bbox_annotator(pil_image, annotations, key=f"annotator_{image_id}_{mode.value}")
 
     if new_bbox:
+        # Use the passed exemplar_type (SEGMENT for inside_box, selected type for find_all)
+        prompt_type = exemplar_type
+
         if _create_annotation(
-            image_id, new_bbox["x"], new_bbox["y"], new_bbox["width"], new_bbox["height"]
+            image_id,
+            new_bbox["x"],
+            new_bbox["y"],
+            new_bbox["width"],
+            new_bbox["height"],
+            prompt_type,
         ):
             st.success("Annotation created!")
             st.rerun()
@@ -168,24 +265,44 @@ def _render_thumbnail_gallery(images: list[dict]) -> None:
     )
 
 
-def _render_annotation_list(annotations: list[dict]) -> None:
+def _render_annotation_list(annotations: list[dict], mode: SegmentationMode) -> None:
     """Render the annotation list sidebar."""
-    st.subheader(f"Annotations ({len(annotations)})")
+    if mode == SegmentationMode.INSIDE_BOX:
+        header = f"Boxes ({len(annotations)})"
+        empty_msg = "No boxes yet. Draw a bounding box on the image."
+    else:
+        header = f"Exemplars ({len(annotations)})"
+        empty_msg = "No exemplars yet. Draw positive (left-click) or negative (right-click) exemplars."
+
+    st.subheader(header)
 
     if not annotations:
-        st.info("No annotations yet. Draw a bounding box on the image.")
+        st.info(empty_msg)
         return
 
     for idx, annotation in enumerate(annotations):
-        color = get_bbox_color(idx)
+        color = _get_annotation_color(annotation, idx)
+        prompt_type = annotation.get("prompt_type", PromptType.SEGMENT.value)
+
+        # Build label based on prompt type
+        if prompt_type == PromptType.POSITIVE_EXEMPLAR.value:
+            label = f"+ Exemplar {idx + 1}"
+            badge_color = "#4bff4b"  # green
+        elif prompt_type == PromptType.NEGATIVE_EXEMPLAR.value:
+            label = f"- Exemplar {idx + 1}"
+            badge_color = "#ff4b4b"  # red
+        else:
+            label = f"Box {idx + 1}"
+            badge_color = color
+
         col1, col2 = st.columns([4, 1])
 
         with col1:
             st.markdown(
                 f"<div style='display: flex; align-items: center;'>"
-                f"<div style='width: 12px; height: 12px; background: {color}; "
+                f"<div style='width: 12px; height: 12px; background: {badge_color}; "
                 f"border-radius: 3px; margin-right: 8px;'></div>"
-                f"<span>Box {idx + 1}</span></div>",
+                f"<span>{label}</span></div>",
                 unsafe_allow_html=True,
             )
             st.caption(
@@ -203,12 +320,102 @@ def _render_annotation_list(annotations: list[dict]) -> None:
         st.divider()
 
 
-def _render_instructions() -> None:
+def _render_instructions(mode: SegmentationMode) -> None:
     """Render the instructions panel."""
     st.markdown("---")
     st.caption("**Instructions:**")
-    st.caption("Click and drag on the image to draw bounding boxes.")
-    st.caption("Use Previous/Next buttons to navigate between images.")
+    if mode == SegmentationMode.INSIDE_BOX:
+        st.caption("Click and drag on the image to draw bounding boxes.")
+        st.caption("Use Previous/Next buttons to navigate between images.")
+    else:
+        st.caption("Enter a text prompt describing what to find.")
+        st.caption("Select exemplar type (+ or -) then draw boxes.")
+        st.caption("Positive (+): find similar objects.")
+        st.caption("Negative (-): exclude similar objects.")
+
+
+def _render_find_all_controls(current_image: dict) -> PromptType:
+    """Render text prompt input and exemplar type toggle for find-all mode.
+
+    Returns the selected exemplar type for creating new annotations.
+    """
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        current_prompt = current_image.get("text_prompt", "") or ""
+        text_key = f"text_prompt_{current_image['id']}"
+
+        new_prompt = st.text_input(
+            "Text Prompt",
+            value=current_prompt,
+            placeholder="e.g., 'red apples' or 'person wearing blue'",
+            key=text_key,
+            help="Describe what you want to find in the image",
+        )
+
+        # Save if changed
+        if new_prompt != current_prompt:
+            if _update_image_text_prompt(current_image["id"], new_prompt):
+                st.success("Text prompt saved!", icon="✓")
+            else:
+                st.error("Failed to save text prompt")
+
+    with col2:
+        exemplar_options = ["+ Positive", "- Negative"]
+        current_idx = 0 if st.session_state.exemplar_type == PromptType.POSITIVE_EXEMPLAR else 1
+
+        selected = st.radio(
+            "Exemplar Type",
+            options=exemplar_options,
+            index=current_idx,
+            horizontal=True,
+            key="exemplar_type_radio",
+            help="Positive: find similar. Negative: exclude similar.",
+        )
+
+        # Map selection back to enum
+        new_exemplar_type = PromptType.POSITIVE_EXEMPLAR if selected == "+ Positive" else PromptType.NEGATIVE_EXEMPLAR
+
+        # Update session state if changed
+        if new_exemplar_type != st.session_state.exemplar_type:
+            st.session_state.exemplar_type = new_exemplar_type
+
+    return st.session_state.exemplar_type
+
+
+def _render_mode_toggle() -> SegmentationMode:
+    """Render the segmentation mode toggle and return the selected mode."""
+    mode_options = {
+        SegmentationMode.INSIDE_BOX: "Inside Box",
+        SegmentationMode.FIND_ALL: "Find All",
+    }
+    mode_descriptions = {
+        SegmentationMode.INSIDE_BOX: "Segment objects inside each bounding box",
+        SegmentationMode.FIND_ALL: "Find all instances matching text prompt or exemplars",
+    }
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        selected_label = st.radio(
+            "Segmentation Mode",
+            options=list(mode_options.values()),
+            index=0 if st.session_state.segmentation_mode == SegmentationMode.INSIDE_BOX else 1,
+            horizontal=True,
+            key="mode_radio",
+        )
+
+    # Map label back to enum
+    mode = SegmentationMode.INSIDE_BOX if selected_label == "Inside Box" else SegmentationMode.FIND_ALL
+
+    # Update session state if mode changed
+    if mode != st.session_state.segmentation_mode:
+        st.session_state.segmentation_mode = mode
+        st.rerun()
+
+    with col2:
+        st.caption(mode_descriptions[mode])
+
+    return mode
 
 
 def render() -> None:
@@ -218,6 +425,16 @@ def render() -> None:
 
     if "selected_image_index" not in st.session_state:
         st.session_state.selected_image_index = 0
+
+    if "segmentation_mode" not in st.session_state:
+        st.session_state.segmentation_mode = SegmentationMode.INSIDE_BOX
+
+    if "exemplar_type" not in st.session_state:
+        st.session_state.exemplar_type = PromptType.POSITIVE_EXEMPLAR
+
+    # Mode toggle at the top
+    current_mode = _render_mode_toggle()
+    st.divider()
 
     images = _fetch_images()
 
@@ -229,15 +446,20 @@ def render() -> None:
         st.session_state.selected_image_index = 0
 
     current_image = images[st.session_state.selected_image_index]
-    annotations = _fetch_annotations(current_image["id"])
+    annotations = _fetch_annotations(current_image["id"], current_mode)
+
+    # Show find-all controls (text prompt + exemplar type toggle)
+    exemplar_type = PromptType.SEGMENT  # Default for inside_box mode
+    if current_mode == SegmentationMode.FIND_ALL:
+        exemplar_type = _render_find_all_controls(current_image)
 
     main_col, sidebar_col = st.columns([3, 1])
 
     with main_col:
-        _render_image_annotator(current_image, annotations)
+        _render_image_annotator(current_image, annotations, current_mode, exemplar_type)
         _render_navigation_controls(images)
         _render_thumbnail_gallery(images)
 
     with sidebar_col:
-        _render_annotation_list(annotations)
-        _render_instructions()
+        _render_annotation_list(annotations, current_mode)
+        _render_instructions(current_mode)

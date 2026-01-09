@@ -3,8 +3,8 @@
 from collections.abc import Callable
 from typing import Any
 
-from PIL import Image, ImageDraw
 import streamlit as st
+from PIL import Image, ImageDraw
 from streamlit_image_coordinates import streamlit_image_coordinates
 
 # Color palette for bounding boxes (cycle through these)

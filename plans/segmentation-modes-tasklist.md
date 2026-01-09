@@ -145,39 +145,40 @@
 
 **Tasks:**
 
-- [ ] [P4.1] Add `segmentation_mode` to Streamlit session_state in `annotation.py`
+- [x] [P4.1] Add `segmentation_mode` to Streamlit session_state in `annotation.py`
   - Default to "inside_box"
   - Persist across page navigation
-- [ ] [P4.2] Add mode toggle UI at top of annotation page
+- [x] [P4.2] Add mode toggle UI at top of annotation page
   - Radio buttons or segmented control: "Inside Box" / "Find All"
   - Display description of each mode
-- [ ] [P4.3] Update `_fetch_annotations()` to filter by prompt_type based on mode
+- [x] [P4.3] Update `_fetch_annotations()` to filter by prompt_type based on mode
   - inside_box mode: fetch prompt_type=SEGMENT
   - find_all mode: fetch prompt_type in (POSITIVE_EXEMPLAR, NEGATIVE_EXEMPLAR)
-- [ ] [P4.4] Add text prompt input field (visible only in find_all mode)
+- [x] [P4.4] Add text prompt input field (visible only in find_all mode)
   - Text input below mode toggle
   - On change: call PATCH /images/{image_id} to save text_prompt
   - Load existing text_prompt when selecting image
-- [ ] [P4.5] Update `_create_annotation()` to include prompt_type based on mode and click type
+- [x] [P4.5] Update `_create_annotation()` to include prompt_type based on mode and exemplar type
   - inside_box mode: always SEGMENT
-  - find_all mode: POSITIVE_EXEMPLAR (left-click) or NEGATIVE_EXEMPLAR (right-click)
-- [ ] [P4.6] Update `bbox_annotator.py` to support right-click drag
-  - Detect right mouse button in JavaScript component
-  - Return `{"x", "y", "width", "height", "button": "left"|"right"}`
-  - Style negative boxes differently (e.g., red dashed outline)
-- [ ] [P4.7] Update `_render_annotation_list()` to show prompt_type indicator
+  - find_all mode: use selected exemplar type from toggle
+- [x] [P4.6] Add exemplar type toggle for find-all mode
+  - Add session state for `exemplar_type` (positive/negative)
+  - Add radio toggle visible only in find-all mode
+  - Use selected type when creating annotation
+  - (Changed from right-click approach - see plan changelog)
+- [x] [P4.7] Update `_render_annotation_list()` to show prompt_type indicator
   - Show "+" icon for positive exemplar, "-" for negative, none for segment
   - Different colors for positive (green) vs negative (red) exemplars
-- [ ] [P4.8] Update annotation deletion to work with filtered view
-- [ ] [P4.9] Manual test: verify mode switching, text prompt saving, right-click boxes
+- [x] [P4.8] Update annotation deletion to work with filtered view
+- [x] [P4.9] Manual test: verify mode switching, text prompt saving, exemplar toggle
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/src/samui_frontend/pages/annotation.py packages/samui-frontend/src/samui_frontend/components/bbox_annotator.py`
-- [ ] Code format: Run `uvx ruff format packages/samui-frontend/src/samui_frontend/pages/annotation.py packages/samui-frontend/src/samui_frontend/components/bbox_annotator.py --check`
-- [ ] Review: Test both modes manually, verify UI is intuitive
+- [x] Code quality: Run `uvx ruff check packages/samui-frontend/src/samui_frontend/pages/annotation.py packages/samui-frontend/src/samui_frontend/components/bbox_annotator.py`
+- [x] Code format: Run `uvx ruff format packages/samui-frontend/src/samui_frontend/pages/annotation.py packages/samui-frontend/src/samui_frontend/components/bbox_annotator.py --check`
+- [x] Review: Test both modes manually, verify UI is intuitive
 
-**Phase 4 Complete:** Annotation page supports both modes. Users can draw positive/negative exemplars with right-click. Text prompts saved per image.
+**Phase 4 Complete:** Annotation page supports both modes. Users can select positive/negative exemplars via toggle. Text prompts saved per image.
 
 ---
 

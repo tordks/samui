@@ -219,3 +219,12 @@ Each phase ends with validation:
 
 These ensure code quality before proceeding to dependent phases.
 
+---
+
+## Changelog
+
+**2026-01-09**: Phase 4 implementation change
+- **Original**: Right-click drag to create negative exemplar boxes in find-all mode
+- **Changed to**: Toggle control (Positive/Negative) for selecting exemplar type before drawing
+- **Reason**: The `streamlit-image-coordinates` component does not support right-click detection. A toggle provides clear user intent and is more accessible.
+
