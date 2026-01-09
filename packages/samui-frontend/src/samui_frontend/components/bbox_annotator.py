@@ -7,15 +7,7 @@ import streamlit as st
 from PIL import Image, ImageDraw
 from streamlit_image_coordinates import streamlit_image_coordinates
 
-# Color palette for bounding boxes (cycle through these)
-BBOX_COLORS = [
-    "#ff4b4b",  # red
-    "#4bff4b",  # green
-    "#4b4bff",  # blue
-    "#ffff4b",  # yellow
-    "#ff4bff",  # magenta
-    "#4bffff",  # cyan
-]
+from samui_frontend.constants import BBOX_COLORS
 
 
 def _draw_bboxes_on_image(

@@ -9,17 +9,12 @@ from PIL import Image, ImageDraw
 
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
 from samui_frontend.config import API_URL
+from samui_frontend.constants import (
+    BBOX_COLORS,
+    COLOR_NEGATIVE_EXEMPLAR,
+    COLOR_POSITIVE_EXEMPLAR,
+)
 from samui_frontend.models import AnnotationSource, PromptType, SegmentationMode
-
-# Color palette for bounding boxes (matches bbox_annotator)
-BBOX_COLORS = [
-    "#ff4b4b",  # red
-    "#4bff4b",  # green
-    "#4b4bff",  # blue
-    "#ffff4b",  # yellow
-    "#ff4bff",  # magenta
-    "#4bffff",  # cyan
-]
 
 
 def _fetch_images() -> list[dict]:
@@ -126,9 +121,9 @@ def _get_annotation_color(annotation: dict, index: int) -> str:
     """Get color for annotation based on prompt_type."""
     prompt_type = annotation.get("prompt_type", PromptType.SEGMENT.value)
     if prompt_type == PromptType.POSITIVE_EXEMPLAR.value:
-        return "#4bff4b"  # green for positive
+        return COLOR_POSITIVE_EXEMPLAR
     elif prompt_type == PromptType.NEGATIVE_EXEMPLAR.value:
-        return "#ff4b4b"  # red for negative
+        return COLOR_NEGATIVE_EXEMPLAR
     return BBOX_COLORS[index % len(BBOX_COLORS)]
 
 
