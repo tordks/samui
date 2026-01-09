@@ -4,6 +4,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
@@ -95,8 +96,6 @@ def get_image_data(
     storage: StorageService = Depends(get_storage_service),
 ) -> bytes:
     """Get the actual image data."""
-    from fastapi.responses import Response
-
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")

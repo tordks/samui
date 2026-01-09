@@ -7,6 +7,7 @@ from io import BytesIO
 
 import numpy as np
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import JSONResponse, Response
 from numpy.typing import NDArray
 from PIL import Image as PILImage
 from sqlalchemy.orm import Session
@@ -440,8 +441,6 @@ def get_mask(
     Raises:
         HTTPException: If image not found or not processed.
     """
-    from fastapi.responses import Response
-
     result = (
         db.query(ProcessingResult).filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode).first()
     )
@@ -477,8 +476,6 @@ def export_coco_json(
     Raises:
         HTTPException: If image not found or not processed.
     """
-    from fastapi.responses import JSONResponse
-
     # Get image and processing result
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
