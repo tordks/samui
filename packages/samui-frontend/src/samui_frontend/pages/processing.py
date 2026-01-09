@@ -195,6 +195,8 @@ def _render_processing_status(mode: SegmentationMode, ready_count: int) -> None:
 
     Using @st.fragment(run_every=1) allows this component to refresh
     every second without blocking the main UI or causing a full page rerun.
+
+    When processed_count changes, triggers a full rerun to update the gallery.
     """
     mode_label = "Inside Box" if mode == SegmentationMode.INSIDE_BOX else "Find All"
     status = get_processing_status()
@@ -206,10 +208,21 @@ def _render_processing_status(mode: SegmentationMode, ready_count: int) -> None:
 
         progress = processed / total if total > 0 else 0
         st.progress(progress, f"Processing ({mode_label}): {processed} of {total} ({current_filename})")
+
+        # Trigger full page rerun when an image finishes processing
+        # This updates the gallery to show new results
+        last_count = st.session_state.get("last_processed_count", 0)
+        if processed > last_count:
+            st.session_state.last_processed_count = processed
+            st.rerun()
     elif status and status.get("error"):
         st.error(f"Processing failed: {status.get('error')}")
+        # Reset counter on error
+        st.session_state.last_processed_count = 0
     elif status and status.get("batch_id") and status.get("processed_count", 0) > 0:
         st.success(f"Processing complete! {status.get('processed_count')} images processed.")
+        # Reset counter when complete
+        st.session_state.last_processed_count = 0
     elif ready_count == 0:
         if mode == SegmentationMode.INSIDE_BOX:
             st.info("No images with segment boxes. Add annotations first.")
