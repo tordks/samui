@@ -16,41 +16,12 @@ from samui_frontend.api import (
     start_processing,
 )
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
-from samui_frontend.constants import (
-    BBOX_COLORS,
-    COLOR_NEGATIVE_EXEMPLAR,
-    COLOR_POSITIVE_EXEMPLAR,
-)
 from samui_frontend.models import PromptType, SegmentationMode
-
-
-def _get_annotation_color(annotation: dict, index: int) -> str:
-    """Get color for annotation based on prompt_type."""
-    prompt_type = annotation.get("prompt_type", PromptType.SEGMENT.value)
-    if prompt_type == PromptType.POSITIVE_EXEMPLAR.value:
-        return COLOR_POSITIVE_EXEMPLAR
-    elif prompt_type == PromptType.NEGATIVE_EXEMPLAR.value:
-        return COLOR_NEGATIVE_EXEMPLAR
-    return BBOX_COLORS[index % len(BBOX_COLORS)]
-
-
-def _get_annotation_label(annotation: dict, index: int, mode: SegmentationMode) -> str:
-    """Get label for annotation based on prompt_type and mode."""
-    prompt_type = annotation.get("prompt_type", PromptType.SEGMENT.value)
-    if mode == SegmentationMode.FIND_ALL:
-        if prompt_type == PromptType.POSITIVE_EXEMPLAR.value:
-            return f"+Ex {index + 1}"
-        elif prompt_type == PromptType.NEGATIVE_EXEMPLAR.value:
-            return f"-Ex {index + 1}"
-    return f"Box {index + 1}"
-
-
-def _get_text_prompt_label(image: dict) -> str | None:
-    """Return text prompt label for gallery display."""
-    text_prompt = image.get("text_prompt")
-    if text_prompt:
-        return f"text prompt: {text_prompt}"
-    return None
+from samui_frontend.utils import (
+    get_annotation_color,
+    get_annotation_label,
+    get_text_prompt_label,
+)
 
 
 def _create_overlay_image(
@@ -88,7 +59,7 @@ def _create_overlay_image(
     # Draw bounding boxes on top
     draw = ImageDraw.Draw(image)
     for idx, ann in enumerate(annotations):
-        color = _get_annotation_color(ann, idx)
+        color = get_annotation_color(ann, idx)
         x1 = ann["bbox_x"]
         y1 = ann["bbox_y"]
         x2 = x1 + ann["bbox_width"]
@@ -98,7 +69,7 @@ def _create_overlay_image(
         draw.rectangle([x1, y1, x2, y2], outline=color, width=3)
 
         # Draw label
-        label = _get_annotation_label(ann, idx, mode)
+        label = get_annotation_label(ann, idx, mode)
         label_bbox = draw.textbbox((x1, y1 - 20), label)
         draw.rectangle(label_bbox, fill=color)
         draw.text((x1, y1 - 20), label, fill="white")
@@ -338,7 +309,7 @@ def _render_processed_gallery(images: list[dict], mode: SegmentationMode) -> Non
         st.rerun()
 
     # Show text prompt label above thumbnails in find-all mode
-    label_cb = _get_text_prompt_label if mode == SegmentationMode.FIND_ALL else None
+    label_cb = get_text_prompt_label if mode == SegmentationMode.FIND_ALL else None
 
     image_gallery(
         images,
