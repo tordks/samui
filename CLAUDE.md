@@ -72,6 +72,18 @@ cd packages/samui-backend && uv add <package>
 cd packages/samui-frontend && uv add <package>
 ```
 
+### Project Tree with Line Counts
+
+```bash
+# From current directory
+tree -fi --noreport | while read f; do [ -f "$f" ] && printf "%s (%d lines)\n" "$f" "$(wc -l < "$f")" || echo "$f"; done
+
+# From custom root
+tree -fi --noreport packages/samui-backend/src | while read f; do [ -f "$f" ] && printf "%s (%d lines)\n" "$f" "$(wc -l < "$f")" || echo "$f"; done
+```
+
+Files should be under 500 lines for maintainability. Consider refactoring large files into smaller modules if writing to a large file.
+
 ## Architecture
 
 Monorepo with isolated packages:
