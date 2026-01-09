@@ -2,6 +2,15 @@
 
 A web-based interface for SAM3 image segmentation. Upload images, draw bounding box prompts, run inference, and export results in COCO format.
 
+## Features
+
+- **Two Segmentation Modes**:
+  - **Inside Box**: Segment objects within user-drawn bounding boxes
+  - **Find All**: Discover all instances matching a text prompt or exemplar boxes
+- **Annotation Tools**: Draw bounding boxes with support for positive/negative exemplars
+- **Batch Processing**: Process multiple images in a single batch
+- **COCO Export**: Download segmentation results in standard COCO format
+
 ## Quick Start
 
 ### Prerequisites
@@ -94,6 +103,7 @@ samui/
     ├── conftest.py                # Test fixtures
     ├── test_api_images.py         # Image API tests
     ├── test_api_annotations.py    # Annotation API tests
+    ├── test_api_processing.py     # Processing API tests (mode-aware)
     ├── test_sam3_inference.py     # SAM3 service tests
     └── test_coco_export.py        # COCO export tests
 ```
@@ -108,29 +118,64 @@ samui/
 | GET | `/images` | List all images |
 | GET | `/images/{id}` | Get image metadata |
 | GET | `/images/{id}/data` | Get image binary data |
+| PATCH | `/images/{id}` | Update image (e.g., text_prompt for find-all mode) |
 | DELETE | `/images/{id}` | Delete image |
 
 ### Annotations
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/annotations` | Create bounding box annotation |
-| GET | `/annotations/{image_id}` | Get all annotations for an image |
+| POST | `/annotations` | Create annotation with `prompt_type` (segment, positive_exemplar, negative_exemplar) |
+| GET | `/annotations/{image_id}` | Get annotations, optionally filtered by `?prompt_type=` |
 | DELETE | `/annotations/{id}` | Delete annotation |
 
 ### Processing
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/process` | Start batch SAM3 inference |
+| POST | `/process` | Start batch inference with `mode` (inside_box or find_all) |
 | GET | `/process/status` | Get processing progress |
-| GET | `/process/export/{image_id}` | Download COCO JSON for image |
+| GET | `/process/mask/{image_id}` | Get mask image, optionally filtered by `?mode=` |
+| GET | `/process/export/{image_id}` | Download COCO JSON, optionally filtered by `?mode=` |
 
 ### System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Health check |
+
+## Segmentation Modes
+
+### Inside Box Mode
+
+The default mode. Draw bounding boxes around objects you want to segment. SAM3 will generate precise masks for objects within each box.
+
+**Workflow:**
+1. Upload images
+2. Select "Inside Box" mode on the annotation page
+3. Draw bounding boxes around objects of interest
+4. Go to processing page, ensure "Inside Box" mode is selected
+5. Click "Process" to run inference
+6. Download results in COCO format
+
+### Find All Mode
+
+Discover all instances of objects matching a text description or visual exemplars. Useful for finding multiple similar objects across an image.
+
+**Workflow:**
+1. Upload images
+2. Select "Find All" mode on the annotation page
+3. Enter a text prompt (e.g., "red apples") and/or draw exemplar boxes:
+   - **Positive exemplars (+)**: Examples of what to find
+   - **Negative exemplars (-)**: Examples of what to exclude
+4. Go to processing page, select "Find All" mode
+5. Click "Process" to run inference - discovered objects become annotations
+6. Download results in COCO format
+
+**Notes:**
+- Each mode maintains separate annotations and processing results
+- You can process the same image with both modes independently
+- Find-all mode creates new annotations from discovered objects (marked as model-generated)
 
 ## Configuration
 
@@ -183,14 +228,11 @@ uv add <package>
 
 
 ## TODO
-- In packages/samui-frontend/src/samui_frontend/pages/annotation.py:73. A missing annotation mode should give an error?
-- Fix state. updated bbox does not update processed status
+
+- Fix state: updated bbox does not update processed status
 - Progress bar update should not freeze UI
 - Make os.path -> pathlib throughout codebase
 - Make sure to use dataclasses instead of dicts where appropriate
 - GPU hardware detection and conditionals for CUDA/CPU
 - Replace rectangle drawing component to be able to see live-drawing of bboxes
-- 
-- Add text prompts alongside bbox prompts
 - Add SAM 1 style point prompts
-- 
