@@ -47,45 +47,45 @@
 
 **Tasks:**
 
-- [ ] [P2.1] Add batched API imports to `sam3_inference.py`
+- [x] [P2.1] Add batched API imports to `sam3_inference.py`
   - `from sam3.train.data.sam3_image_dataset import InferenceMetadata, FindQueryLoaded, Image as SAMImage, Datapoint`
   - `from sam3.train.data.collator import collate_fn_api as collate`
   - `from sam3.train.transforms.basic_for_api import ComposeAPI, RandomResizeAPI, ToTensorAPI, NormalizeAPI`
   - `from sam3.eval.postprocessors import PostProcessImage`
   - `from sam3.model.utils.misc import copy_data_to_device`
-- [ ] [P2.2] Add `_create_transforms()` helper method returning configured transform pipeline
+- [x] [P2.2] Add `_create_transforms()` helper method returning configured transform pipeline
   - RandomResizeAPI(sizes=1008, max_size=1008, square=True)
   - ToTensorAPI()
   - NormalizeAPI(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-- [ ] [P2.3] Add `_create_postprocessor()` helper method returning configured PostProcessImage
+- [x] [P2.3] Add `_create_postprocessor()` helper method returning configured PostProcessImage
   - detection_threshold=0.5, convert_mask_to_rle=False, use_original_sizes_mask=True
-- [ ] [P2.4] Add `_create_datapoint()` helper method that builds DataPoint from image, text, and boxes
+- [x] [P2.4] Add `_create_datapoint()` helper method that builds DataPoint from image, text, and boxes
   - Accept: PIL image, optional text_prompt, optional list of (box, is_positive) tuples
   - Create SAMImage with image data and size
   - Create FindQueryLoaded with query_text and optional input_bbox/input_bbox_label
   - Boxes in XYXY pixel format (transforms handle conversion)
-- [ ] [P2.5] Implement `process_image_find_all()` method in SAM3Service
+- [x] [P2.5] Implement `process_image_find_all()` method in SAM3Service
   - Parameters: image (PIL), text_prompt (str|None), exemplar_boxes (list of (bbox_xywh, is_positive))
   - Validate: at least text_prompt or exemplar_boxes must be provided
   - Build datapoint, apply transforms, collate, move to GPU
   - Run model forward pass, postprocess results
   - Return: tuple of (masks array, scores array, discovered_bboxes in xywh format)
-- [ ] [P2.6] Add `load_model()` changes if needed for batched API (may need different model build)
+- [x] [P2.6] Add `load_model()` changes if needed for batched API (may need different model build)
   - Check if `enable_inst_interactivity=True` affects batched API
   - Batched API may work with base model without inst_interactivity
-- [ ] [P2.7] Write unit tests for `process_image_find_all()` in `test_sam3_inference.py`
+- [x] [P2.7] Write unit tests for `process_image_find_all()` in `test_sam3_inference.py`
   - Test with text prompt only
   - Test with positive exemplar box only
   - Test with text + positive + negative boxes
   - Test error when neither text nor boxes provided
   - Mock DataPoint creation, transforms, model forward, postprocessor
-- [ ] [P2.8] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/test_sam3_inference.py -v`
+- [x] [P2.8] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/test_sam3_inference.py -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/src/samui_backend/services/sam3_inference.py tests/test_sam3_inference.py`
-- [ ] Code format: Run `uvx ruff format packages/samui-backend/src/samui_backend/services/sam3_inference.py tests/test_sam3_inference.py --check`
-- [ ] Review: Verify method signature matches plan, error handling is complete
+- [x] Code quality: Run `uvx ruff check packages/samui-backend/src/samui_backend/services/sam3_inference.py tests/test_sam3_inference.py`
+- [x] Code format: Run `uvx ruff format packages/samui-backend/src/samui_backend/services/sam3_inference.py tests/test_sam3_inference.py --check`
+- [x] Review: Verify method signature matches plan, error handling is complete
 
 **Phase 2 Complete:** SAM3Service has working find-all method. Batched API components properly integrated. Method tested with mocks.
 

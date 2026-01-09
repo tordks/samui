@@ -184,6 +184,7 @@ uv add <package>
 
 ## TODO
 - Fix state. updated bbox does not update processed status
+- Progress bar update should not freeze UI
 - Make os.path -> pathlib throughout codebase
 - Make sure to use dataclasses instead of dicts where appropriate
 - GPU hardware detection and conditionals for CUDA/CPU
