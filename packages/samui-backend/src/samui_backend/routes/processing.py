@@ -4,6 +4,7 @@ import json
 import logging
 import uuid
 from io import BytesIO
+from typing import TypedDict
 
 import numpy as np
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -31,8 +32,21 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/process", tags=["processing"])
 
+
+class ProcessingState(TypedDict):
+    """Type definition for processing state."""
+
+    batch_id: uuid.UUID | None
+    is_running: bool
+    processed_count: int
+    total_count: int
+    current_image_id: uuid.UUID | None
+    current_image_filename: str | None
+    error: str | None
+
+
 # Processing state (in-memory for single-user tool)
-_processing_state: dict = {
+_processing_state: ProcessingState = {
     "batch_id": None,
     "is_running": False,
     "processed_count": 0,
