@@ -1,6 +1,5 @@
 """Annotation page for drawing bounding boxes on images."""
 
-from enum import StrEnum
 from io import BytesIO
 
 import httpx
@@ -10,29 +9,7 @@ from PIL import Image, ImageDraw
 from samui_frontend.components.bbox_annotator import bbox_annotator
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
 from samui_frontend.config import API_URL
-
-
-class SegmentationMode(StrEnum):
-    """Segmentation mode for processing."""
-
-    INSIDE_BOX = "inside_box"
-    FIND_ALL = "find_all"
-
-
-class PromptType(StrEnum):
-    """Type of prompt/annotation."""
-
-    SEGMENT = "segment"
-    POSITIVE_EXEMPLAR = "positive_exemplar"
-    NEGATIVE_EXEMPLAR = "negative_exemplar"
-
-
-class AnnotationSource(StrEnum):
-    """Source of an annotation."""
-
-    USER = "user"
-    MODEL = "model"
-
+from samui_frontend.models import AnnotationSource, PromptType, SegmentationMode
 
 # Color palette for bounding boxes (matches bbox_annotator)
 BBOX_COLORS = [

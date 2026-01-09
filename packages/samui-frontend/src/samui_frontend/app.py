@@ -4,7 +4,6 @@ import streamlit as st
 
 from samui_frontend.pages import annotation, processing, upload
 
-
 st.set_page_config(
     page_title="SAM3 WebUI",
     page_icon="🎯",
