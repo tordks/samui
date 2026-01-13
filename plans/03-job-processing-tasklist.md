@@ -74,38 +74,38 @@
 
 **Tasks:**
 
-- [ ] [P3.1] Create `services/job_processor.py` with `needs_processing(db, image_id, mode)` function
+- [x] [P3.1] Create `services/job_processor.py` with `needs_processing(db, image_id, mode)` function
   - Compare current annotation IDs with `latest_result.annotation_ids` (set comparison)
   - Compare text_prompt with text_prompt_used for find-all mode
   - Any difference in annotation sets triggers reprocessing (catches adds and deletes)
-- [ ] [P3.2] Create `get_images_needing_processing(db, image_ids, mode)` function in job_processor.py
+- [x] [P3.2] Create `get_images_needing_processing(db, image_ids, mode)` function in job_processor.py
   - Filter image_ids by needs_processing check
   - Return list of image_ids that need processing
-- [ ] [P3.3] Create `process_single_image(db, storage, sam3, image, job, mode)` function in job_processor.py
+- [x] [P3.3] Create `process_single_image(db, storage, sam3, image, job, mode)` function in job_processor.py
   - Run inference, save mask and COCO JSON
   - Create ProcessingResult with job_id, annotation_ids, text_prompt_used, bboxes
-- [ ] [P3.4] Create `process_job(job_id)` function in job_processor.py
+- [x] [P3.4] Create `process_job(job_id)` function in job_processor.py
   - Set job status to RUNNING
   - Process each image, update current_index
   - Set job status to COMPLETED or FAILED
-- [ ] [P3.5] Create `process_job_and_check_queue(job_id)` function in job_processor.py
+- [x] [P3.5] Create `process_job_and_check_queue(job_id)` function in job_processor.py
   - Call process_job
   - Check for next QUEUED job and process it (recursive)
-- [ ] [P3.6] Create `start_job_if_none_running(db, background_tasks, job_id)` function
+- [x] [P3.6] Create `start_job_if_none_running(db, background_tasks, job_id)` function
   - Check if any job is RUNNING
   - If not, start background task for this job
-- [ ] [P3.7] Create `tests/test_job_processor.py` with unit tests
+- [x] [P3.7] Create `tests/test_job_processor.py` with unit tests
   - Test needs_processing logic (all cases)
   - Test job state transitions
-- [ ] [P3.8] Add startup cleanup function in `job_processor.py`: reset RUNNING jobs to FAILED on app startup
-- [ ] [P3.9] Register startup cleanup in `main.py` lifespan context manager
-- [ ] [P3.10] Add `get_background_db()` context manager in `db/database.py` for background task sessions
+- [x] [P3.8] Add startup cleanup function in `job_processor.py`: reset RUNNING jobs to FAILED on app startup
+- [x] [P3.9] Register startup cleanup in `main.py` lifespan context manager
+- [x] [P3.10] Add `get_background_db()` context manager in `db/database.py` for background task sessions
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
-- [ ] Tests pass: Run `cd packages/samui-backend && uv run pytest ../../tests/test_job_processor.py -v`
+- [x] Code quality: Run `uvx ruff check packages/samui-backend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
+- [x] Tests pass: Run `cd packages/samui-backend && uv run pytest ../../tests/test_job_processor.py -v`
 
 **Phase 3 Complete:** Job processor service implemented with queue management.
 

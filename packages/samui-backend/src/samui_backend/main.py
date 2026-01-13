@@ -1,19 +1,33 @@
 """FastAPI application entry point."""
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from samui_backend.db.database import Base, engine
+from samui_backend.db.database import Base, SessionLocal, engine
 from samui_backend.routes import annotations_router, images_router, processing_router
+from samui_backend.services import cleanup_stale_jobs
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan: create database tables on startup."""
+    """Application lifespan: create database tables on startup, cleanup stale jobs."""
     Base.metadata.create_all(bind=engine)
+
+    # Cleanup any jobs that were running when the server stopped
+    db = SessionLocal()
+    try:
+        count = cleanup_stale_jobs(db)
+        if count > 0:
+            logger.info(f"Cleaned up {count} stale jobs on startup")
+    finally:
+        db.close()
+
     yield
 
 
