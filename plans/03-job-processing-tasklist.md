@@ -194,21 +194,21 @@
 
 **Tasks:**
 
-- [ ] [P6.1] Add `create_job(image_ids, mode, process_all=False)` function to `api.py`
+- [x] [P6.1] Add `create_job(image_ids, mode, process_all=False)` function to `api.py`
   - POST to /jobs with appropriate parameters
-- [ ] [P6.2] Add `fetch_jobs()` function to `api.py`
+- [x] [P6.2] Add `fetch_jobs()` function to `api.py`
   - GET /jobs, return list of jobs
-- [ ] [P6.3] Add `fetch_job(job_id)` function to `api.py`
+- [x] [P6.3] Add `fetch_job(job_id)` function to `api.py`
   - GET /jobs/{job_id}, return job details including status fields: `is_running`, `processed_count`, `current_image_filename`
-- [ ] [P6.4] Add `fetch_image_history(image_id, mode)` function to `api.py`
+- [x] [P6.4] Add `fetch_image_history(image_id, mode)` function to `api.py`
   - GET /images/{image_id}/history, return list of results
-- [ ] [P6.5] Add `fetch_result_mask(result_id)` function to `api.py`
+- [x] [P6.5] Add `fetch_result_mask(result_id)` function to `api.py`
   - GET /results/{result_id}/mask, return mask bytes
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
+- [x] Code quality: Run `uvx ruff check packages/samui-frontend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
 
 **Phase 6 Complete:** Frontend API functions ready for new endpoints.
 
