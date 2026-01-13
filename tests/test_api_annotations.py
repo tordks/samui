@@ -287,7 +287,7 @@ class TestDeleteAnnotation:
 
 
 class TestAnnotationPromptType:
-    """Tests for annotation prompt_type and source fields."""
+    """Tests for annotation prompt_type field."""
 
     def test_create_annotation_default_prompt_type(
         self, client: TestClient, mock_storage: MagicMock
@@ -309,7 +309,6 @@ class TestAnnotationPromptType:
         assert response.status_code == 201
         data = response.json()
         assert data["prompt_type"] == "segment"
-        assert data["source"] == "user"
 
     def test_create_annotation_with_positive_exemplar(
         self, client: TestClient, mock_storage: MagicMock
@@ -332,7 +331,6 @@ class TestAnnotationPromptType:
         assert response.status_code == 201
         data = response.json()
         assert data["prompt_type"] == "positive_exemplar"
-        assert data["source"] == "user"
 
     def test_create_annotation_with_negative_exemplar(
         self, client: TestClient, mock_storage: MagicMock
@@ -355,7 +353,6 @@ class TestAnnotationPromptType:
         assert response.status_code == 201
         data = response.json()
         assert data["prompt_type"] == "negative_exemplar"
-        assert data["source"] == "user"
 
     def test_get_annotations_filtered_by_prompt_type(
         self, client: TestClient, mock_storage: MagicMock
@@ -452,65 +449,3 @@ class TestImageTextPrompt:
         assert response.status_code == 404
 
 
-class TestImageStatusUpdate:
-    """Tests for image status update on annotation creation."""
-
-    def test_first_annotation_sets_status_to_annotated(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
-        """Test that first annotation changes image status from pending to annotated."""
-        image_id = upload_test_image(client)
-
-        # Verify initial status is pending
-        image_response = client.get(f"/images/{image_id}")
-        assert image_response.json()["processing_status"] == "pending"
-
-        # Create annotation
-        client.post(
-            "/annotations",
-            json={
-                "image_id": image_id,
-                "bbox_x": 10,
-                "bbox_y": 20,
-                "bbox_width": 30,
-                "bbox_height": 40,
-            },
-        )
-
-        # Verify status changed to annotated
-        image_response = client.get(f"/images/{image_id}")
-        assert image_response.json()["processing_status"] == "annotated"
-
-    def test_second_annotation_keeps_status_annotated(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
-        """Test that subsequent annotations don't change status."""
-        image_id = upload_test_image(client)
-
-        # Create first annotation
-        client.post(
-            "/annotations",
-            json={
-                "image_id": image_id,
-                "bbox_x": 10,
-                "bbox_y": 20,
-                "bbox_width": 30,
-                "bbox_height": 40,
-            },
-        )
-
-        # Create second annotation
-        client.post(
-            "/annotations",
-            json={
-                "image_id": image_id,
-                "bbox_x": 50,
-                "bbox_y": 50,
-                "bbox_width": 20,
-                "bbox_height": 20,
-            },
-        )
-
-        # Verify status is still annotated
-        image_response = client.get(f"/images/{image_id}")
-        assert image_response.json()["processing_status"] == "annotated"

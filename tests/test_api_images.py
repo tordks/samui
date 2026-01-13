@@ -31,7 +31,6 @@ class TestUploadImage:
         assert data["filename"] == "test.png"
         assert data["width"] == 100
         assert data["height"] == 100
-        assert data["processing_status"] == "pending"
         assert "id" in data
 
     def test_upload_invalid_file_type(self, client: TestClient) -> None:

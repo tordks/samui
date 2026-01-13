@@ -162,25 +162,25 @@
 
 **Tasks:**
 
-- [ ] [P5.1] Modify `routes/processing.py`: Remove `_processing_state` dict entirely
-- [ ] [P5.2] Modify `routes/processing.py`: Remove or update `start_processing` endpoint
+- [x] [P5.1] Modify `routes/processing.py`: Remove `_processing_state` dict entirely
+- [x] [P5.2] Modify `routes/processing.py`: Remove or update `start_processing` endpoint
   - Either remove (replaced by /jobs POST) or redirect to jobs API
-- [ ] [P5.3] Modify `routes/processing.py`: Update `get_processing_status` to query current RUNNING job
-- [ ] [P5.4] Modify `routes/processing.py`: Update mask endpoint to get latest result for image
-- [ ] [P5.5] Modify `routes/processing.py`: Update COCO export to get latest result for image
-- [ ] [P5.6] Modify `routes/annotations.py`: Remove code that sets `image.processing_status`
-- [ ] [P5.7] Modify `routes/annotations.py`: Remove `source` field handling from annotation creation
-- [ ] [P5.8] Modify `routes/images.py`: Remove `processing_status` from responses
-- [ ] [P5.9] Update `tests/test_api_processing.py`: Remove processing_status assertions
-- [ ] [P5.10] Update `tests/test_api_annotations.py`: Remove source field assertions
-- [ ] [P5.11] Update `tests/test_api_images.py`: Remove processing_status assertions
-- [ ] [P5.12] Run all backend tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P5.3] Modify `routes/processing.py`: Update `get_processing_status` to query current RUNNING job
+- [x] [P5.4] Modify `routes/processing.py`: Update mask endpoint to get latest result for image
+- [x] [P5.5] Modify `routes/processing.py`: Update COCO export to get latest result for image
+- [x] [P5.6] Modify `routes/annotations.py`: Remove code that sets `image.processing_status`
+- [x] [P5.7] Modify `routes/annotations.py`: Remove `source` field handling from annotation creation
+- [x] [P5.8] Modify `routes/images.py`: Remove `processing_status` from responses
+- [x] [P5.9] Update `tests/test_api_processing.py`: Remove processing_status assertions
+- [x] [P5.10] Update `tests/test_api_annotations.py`: Remove source field assertions
+- [x] [P5.11] Update `tests/test_api_images.py`: Remove processing_status assertions
+- [x] [P5.12] Run all backend tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
-- [ ] All tests pass
+- [x] Code quality: Run `uvx ruff check packages/samui-backend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
+- [x] All tests pass
 
 **Phase 5 Complete:** Existing routes updated, deprecated fields removed, all tests pass.
 
