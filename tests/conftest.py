@@ -18,6 +18,7 @@ os.environ["AZURE_CONTAINER_NAME"] = "test-container"
 from samui_backend.db.database import Base, get_db
 from samui_backend.main import app
 from samui_backend.routes.images import get_storage_service as get_storage_service_images
+from samui_backend.routes.jobs import get_storage_service as get_storage_service_jobs
 from samui_backend.routes.processing import get_storage_service as get_storage_service_processing
 
 
@@ -63,6 +64,7 @@ def client(db_session: Session, mock_storage: MagicMock) -> Generator[TestClient
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_storage_service_images] = override_get_storage
+    app.dependency_overrides[get_storage_service_jobs] = override_get_storage
     app.dependency_overrides[get_storage_service_processing] = override_get_storage
 
     with TestClient(app) as test_client:

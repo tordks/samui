@@ -119,36 +119,36 @@
 
 **Tasks:**
 
-- [ ] [P4.1] Create `routes/jobs.py` with router prefix `/jobs`
-- [ ] [P4.2] Add `POST /jobs` endpoint to create new processing job
+- [x] [P4.1] Create `routes/jobs.py` with router prefix `/jobs`
+- [x] [P4.2] Add `POST /jobs` endpoint to create new processing job
   - Accept image_ids and mode
   - For "Process" button: filter by needs_processing
   - For "Process All": use all provided image_ids
   - Create job, call start_job_if_none_running
-- [ ] [P4.3] Add `GET /jobs` endpoint to list all jobs
+- [x] [P4.3] Add `GET /jobs` endpoint to list all jobs
   - Return list of ProcessingJobResponse, newest first
-- [ ] [P4.4] Add `GET /jobs/{job_id}` endpoint to get job details
+- [x] [P4.4] Add `GET /jobs/{job_id}` endpoint to get job details
   - Return ProcessingJobResponse with current progress
-- [ ] [P4.5] Add `GET /images/{image_id}/history` endpoint to `routes/images.py`
+- [x] [P4.5] Add `GET /images/{image_id}/history` endpoint to `routes/images.py`
   - Query parameter: mode
   - Return list of ProcessingHistoryResponse, newest first
-- [ ] [P4.6] Add `GET /results/{result_id}/mask` endpoint to `routes/jobs.py`
+- [x] [P4.6] Add `GET /results/{result_id}/mask` endpoint to `routes/jobs.py`
   - Return mask PNG for specific result
-- [ ] [P4.7] Register jobs router in `main.py`
-- [ ] [P4.8] Create `tests/test_api_jobs.py` with integration tests
+- [x] [P4.7] Register jobs router in `main.py`
+- [x] [P4.8] Create `tests/test_api_jobs.py` with integration tests
   - Test job creation
   - Test job listing
   - Test job status retrieval
   - Test history retrieval
   - Test mask retrieval (`/results/{result_id}/mask`)
-- [ ] [P4.9] Run job tests: `cd packages/samui-backend && uv run pytest ../../tests/test_api_jobs.py -v`
-- [ ] [P4.10] Add validation in `POST /jobs`: verify image_ids exist, return 400 if list is empty
+- [x] [P4.9] Run job tests: `cd packages/samui-backend && uv run pytest ../../tests/test_api_jobs.py -v`
+- [x] [P4.10] Add validation in `POST /jobs`: verify image_ids exist, return 400 if list is empty
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
-- [ ] Review: Verify all endpoints work correctly
+- [x] Code quality: Run `uvx ruff check packages/samui-backend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
+- [x] Review: Verify all endpoints work correctly
 
 **Phase 4 Complete:** Job API endpoints implemented and tested.
 

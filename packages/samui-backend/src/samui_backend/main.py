@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from samui_backend.db.database import Base, SessionLocal, engine
-from samui_backend.routes import annotations_router, images_router, processing_router
+from samui_backend.routes import annotations_router, images_router, jobs_router, processing_router, results_router
 from samui_backend.services import cleanup_stale_jobs
 
 logger = logging.getLogger(__name__)
@@ -51,6 +51,8 @@ app.add_middleware(
 app.include_router(images_router)
 app.include_router(annotations_router)
 app.include_router(processing_router)
+app.include_router(jobs_router)
+app.include_router(results_router)
 
 
 @app.get("/health")

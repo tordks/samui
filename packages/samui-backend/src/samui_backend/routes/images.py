@@ -5,12 +5,14 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
-from samui_backend.db.models import Image
+from samui_backend.db.models import Image, ProcessingResult
 from samui_backend.dependencies import get_storage_service
-from samui_backend.schemas import ImageList, ImageResponse, ImageUpdate
+from samui_backend.enums import SegmentationMode
+from samui_backend.schemas import ImageList, ImageResponse, ImageUpdate, ProcessingHistoryResponse
 from samui_backend.services.storage import StorageService
 from samui_backend.utils import get_image_content_type
 
@@ -133,3 +135,35 @@ def delete_image(
     # Delete from database
     db.delete(image)
     db.commit()
+
+
+@router.get("/{image_id}/history", response_model=list[ProcessingHistoryResponse])
+def get_image_history(
+    image_id: uuid.UUID,
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
+    db: Session = Depends(get_db),
+) -> list[ProcessingResult]:
+    """Get processing history for an image.
+
+    Args:
+        image_id: UUID of the image.
+        mode: Segmentation mode to filter by.
+        db: Database session.
+
+    Returns:
+        List of ProcessingHistoryResponse, newest first.
+
+    Raises:
+        HTTPException: If image not found.
+    """
+    image = db.get(Image, image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    results = (
+        db.query(ProcessingResult)
+        .filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode)
+        .order_by(desc(ProcessingResult.processed_at))
+        .all()
+    )
+    return results
