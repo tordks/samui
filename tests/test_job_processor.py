@@ -50,12 +50,14 @@ def create_test_job(
     image_ids: list[uuid.UUID],
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
     status: JobStatus = JobStatus.QUEUED,
+    filenames: list[str] | None = None,
 ) -> ProcessingJob:
     """Create a test processing job."""
     job = ProcessingJob(
         mode=mode,
         status=status,
         image_ids=[str(img_id) for img_id in image_ids],
+        image_filenames=filenames or [f"test_{i}.png" for i in range(len(image_ids))],
     )
     db.add(job)
     db.commit()

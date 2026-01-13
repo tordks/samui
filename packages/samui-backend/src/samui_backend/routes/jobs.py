@@ -46,15 +46,17 @@ def create_job(
     Raises:
         HTTPException: If no valid images to process or image_ids don't exist.
     """
-    # Validate image_ids exist
-    valid_image_ids = []
+    # Validate image_ids exist and collect filenames
+    valid_images: list[tuple[uuid.UUID, str]] = []
     for image_id in request.image_ids:
         image = db.get(Image, image_id)
         if image:
-            valid_image_ids.append(image_id)
+            valid_images.append((image_id, image.filename))
 
-    if not valid_image_ids:
+    if not valid_images:
         raise HTTPException(status_code=400, detail="No valid image IDs provided")
+
+    valid_image_ids = [img_id for img_id, _ in valid_images]
 
     # Filter by needs_processing if not force_all
     if request.force_all:
@@ -65,11 +67,16 @@ def create_job(
     if not image_ids_to_process:
         raise HTTPException(status_code=400, detail="No images need processing")
 
+    # Build filenames list for images to process (preserve order)
+    id_to_filename = dict(valid_images)
+    filenames_to_process = [id_to_filename[img_id] for img_id in image_ids_to_process]
+
     # Create job
     job = ProcessingJob(
         mode=request.mode,
         status=JobStatus.QUEUED,
         image_ids=[str(img_id) for img_id in image_ids_to_process],
+        image_filenames=filenames_to_process,
         current_index=0,
     )
     db.add(job)

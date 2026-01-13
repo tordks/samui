@@ -199,7 +199,7 @@
 - [ ] [P6.2] Add `fetch_jobs()` function to `api.py`
   - GET /jobs, return list of jobs
 - [ ] [P6.3] Add `fetch_job(job_id)` function to `api.py`
-  - GET /jobs/{job_id}, return job details
+  - GET /jobs/{job_id}, return job details including status fields: `is_running`, `processed_count`, `current_image_filename`
 - [ ] [P6.4] Add `fetch_image_history(image_id, mode)` function to `api.py`
   - GET /images/{image_id}/history, return list of results
 - [ ] [P6.5] Add `fetch_result_mask(result_id)` function to `api.py`
@@ -226,7 +226,9 @@
 - [ ] [P7.2] Modify `pages/processing.py`: Add "Process All" button next to "Process" button
 - [ ] [P7.3] Modify `pages/processing.py`: Update "Process" button to call create_job with process_all=False
 - [ ] [P7.4] Modify `pages/processing.py`: Update "Process All" button to call create_job with process_all=True
-- [ ] [P7.5] Modify `pages/processing.py`: Update progress display to poll job status
+- [ ] [P7.5] Modify `pages/processing.py`: Update progress display to poll `GET /jobs/{job_id}` using `fetch_job()`
+  - Store job_id from create_job response
+  - Use computed fields: `is_running`, `processed_count`, `current_image_filename`
 - [ ] [P7.6] Modify `pages/annotation.py`: Remove any references to `processing_status`
 - [ ] [P7.7] Modify `pages/annotation.py`: Remove any references to annotation `source`
 - [ ] [P7.8] Manual test: Verify processing page works with new job-based flow

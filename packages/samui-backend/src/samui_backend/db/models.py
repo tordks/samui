@@ -78,6 +78,7 @@ class ProcessingJob(Base):
     )
     status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.QUEUED, nullable=False)
     image_ids: Mapped[list] = mapped_column(JSON, nullable=False)  # list of UUID strings
+    image_filenames: Mapped[list] = mapped_column(JSON, nullable=False)  # list of filenames
     current_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False

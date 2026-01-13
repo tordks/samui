@@ -96,18 +96,6 @@ class ProcessResponse(BaseModel):
     message: str
 
 
-class ProcessStatus(BaseModel):
-    """Schema for processing status response."""
-
-    batch_id: uuid.UUID | None
-    is_running: bool
-    processed_count: int
-    total_count: int
-    current_image_id: uuid.UUID | None
-    current_image_filename: str | None
-    error: str | None
-
-
 class ProcessingResultResponse(BaseModel):
     """Schema for processing result response."""
 
@@ -142,6 +130,7 @@ class ProcessingJobResponse(BaseModel):
     mode: SegmentationMode
     status: JobStatus
     image_ids: list[str]
+    image_filenames: list[str]
     current_index: int
     created_at: datetime
     started_at: datetime | None = None
@@ -153,6 +142,26 @@ class ProcessingJobResponse(BaseModel):
     def image_count(self) -> int:
         """Return the total number of images in the job."""
         return len(self.image_ids)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_running(self) -> bool:
+        """Return whether the job is currently running."""
+        return self.status == JobStatus.RUNNING
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def processed_count(self) -> int:
+        """Return the number of images processed so far."""
+        return self.current_index
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def current_image_filename(self) -> str | None:
+        """Return the filename of the image currently being processed."""
+        if self.is_running and self.current_index < len(self.image_filenames):
+            return self.image_filenames[self.current_index]
+        return None
 
 
 class ProcessingHistoryResponse(BaseModel):

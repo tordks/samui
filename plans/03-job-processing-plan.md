@@ -407,3 +407,18 @@ Migration path:
 1. Current: Worker logic in `services/job_processor.py`, called via BackgroundTasks
 2. Preparation: Switch to database polling pattern
 3. Split: Extract worker to separate container
+
+---
+
+## Changelog
+
+### 2025-01-13: Job ID-Based Status Fetching
+
+**Rationale:** The global `/process/status` endpoint assumed single-user/single-job semantics and required complex logic to find "the most relevant" job. Using `GET /jobs/{job_id}` is more explicit and RESTful - clients request status for a specific job.
+
+**Changes:**
+- Add `image_filenames` to ProcessingJob model (denormalized for display)
+- Add computed fields to ProcessingJobResponse: `image_count`, `is_running`, `processed_count`, `current_image_filename`
+- Remove `ProcessStatus` schema and `GET /process/status` endpoint
+- Frontend will poll specific job via `GET /jobs/{job_id}`
+- Update tests to provide `image_filenames` when creating ProcessingJob objects

@@ -1,8 +1,7 @@
-"""Tests for processing API endpoints (mask, export, status).
+"""Tests for processing API endpoints (mask, export).
 
-Note: Job creation tests are in test_api_jobs.py.
-This module tests the legacy-compatible endpoints for mask/export retrieval
-and the status endpoint that queries job state.
+Note: Job creation and status tests are in test_api_jobs.py.
+This module tests the endpoints for mask/export retrieval by image_id.
 """
 
 import io
@@ -49,104 +48,6 @@ def create_segment_annotation(client: TestClient, image_id: str) -> str:
     return response.json()["id"]
 
 
-class TestProcessingStatus:
-    """Tests for GET /process/status endpoint."""
-
-    def test_get_processing_status_no_jobs(self, client: TestClient) -> None:
-        """Test getting processing status when no jobs exist."""
-        response = client.get("/process/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["batch_id"] is None
-        assert data["is_running"] is False
-        assert data["processed_count"] == 0
-        assert data["total_count"] == 0
-        assert data["current_image_id"] is None
-        assert data["current_image_filename"] is None
-        assert data["error"] is None
-
-    def test_get_processing_status_with_running_job(
-        self, client: TestClient, mock_storage: MagicMock, db_session
-    ) -> None:
-        """Test getting processing status when a job is running."""
-        # Create an image first
-        image_id = upload_test_image(client)
-
-        # Create a running job directly in the database
-        job = ProcessingJob(
-            mode=SegmentationMode.INSIDE_BOX,
-            status=JobStatus.RUNNING,
-            image_ids=[image_id],
-            current_index=0,
-        )
-        db_session.add(job)
-        db_session.commit()
-
-        response = client.get("/process/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["batch_id"] == str(job.id)
-        assert data["is_running"] is True
-        assert data["processed_count"] == 0
-        assert data["total_count"] == 1
-        assert data["current_image_id"] == image_id
-
-    def test_get_processing_status_with_completed_job(
-        self, client: TestClient, mock_storage: MagicMock, db_session
-    ) -> None:
-        """Test getting processing status when a job has completed."""
-        # Create an image first
-        image_id = upload_test_image(client)
-
-        # Create a completed job directly in the database
-        job = ProcessingJob(
-            mode=SegmentationMode.INSIDE_BOX,
-            status=JobStatus.COMPLETED,
-            image_ids=[image_id],
-            current_index=1,
-        )
-        db_session.add(job)
-        db_session.commit()
-
-        response = client.get("/process/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["batch_id"] == str(job.id)
-        assert data["is_running"] is False
-        assert data["processed_count"] == 1
-        assert data["total_count"] == 1
-        assert data["current_image_id"] is None
-
-    def test_get_processing_status_with_failed_job(
-        self, client: TestClient, mock_storage: MagicMock, db_session
-    ) -> None:
-        """Test getting processing status when a job has failed."""
-        # Create an image first
-        image_id = upload_test_image(client)
-
-        # Create a failed job directly in the database
-        job = ProcessingJob(
-            mode=SegmentationMode.INSIDE_BOX,
-            status=JobStatus.FAILED,
-            image_ids=[image_id],
-            current_index=0,
-            error="Test error message",
-        )
-        db_session.add(job)
-        db_session.commit()
-
-        response = client.get("/process/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["batch_id"] == str(job.id)
-        assert data["is_running"] is False
-        assert data["error"] == "Test error message"
-
-
 class TestMaskEndpoint:
     """Tests for GET /process/mask/{image_id} endpoint."""
 
@@ -182,6 +83,7 @@ class TestMaskEndpoint:
             mode=SegmentationMode.INSIDE_BOX,
             status=JobStatus.COMPLETED,
             image_ids=[image_id],
+            image_filenames=["test.png"],
             current_index=1,
         )
         db_session.add(job)
@@ -218,6 +120,7 @@ class TestMaskEndpoint:
             mode=SegmentationMode.INSIDE_BOX,
             status=JobStatus.COMPLETED,
             image_ids=[image_id],
+            image_filenames=["test.png"],
             current_index=1,
         )
         db_session.add(job1)
@@ -238,6 +141,7 @@ class TestMaskEndpoint:
             mode=SegmentationMode.INSIDE_BOX,
             status=JobStatus.COMPLETED,
             image_ids=[image_id],
+            image_filenames=["test.png"],
             current_index=1,
         )
         db_session.add(job2)
@@ -308,6 +212,7 @@ class TestExportEndpoint:
             mode=SegmentationMode.INSIDE_BOX,
             status=JobStatus.COMPLETED,
             image_ids=[image_id],
+            image_filenames=["test.png"],
             current_index=1,
         )
         db_session.add(job)
