@@ -251,20 +251,20 @@
 
 **Tasks:**
 
-- [ ] [P8.1] Create `components/arrow_navigator.py` with `arrow_navigator(items, key_prefix)` function
+- [x] [P8.1] Create `components/arrow_navigator.py` with `arrow_navigator(items, key_prefix)` function
   - Display: `< [current/total] >` with left/right buttons
   - Store current index in session state
   - Return current index
-- [ ] [P8.2] Handle edge cases in arrow_navigator
+- [x] [P8.2] Handle edge cases in arrow_navigator
   - Disable left button at index 0
   - Disable right button at last index
   - Handle empty list and single item
-- [ ] [P8.3] Manual test: Verify arrow navigation works correctly
+- [x] [P8.3] Manual test: Verify arrow navigation works correctly
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
+- [x] Code quality: Run `uvx ruff check packages/samui-frontend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
 
 **Phase 8 Complete:** Arrow navigator component ready for use.
 
