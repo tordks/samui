@@ -3,22 +3,23 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
 
 from samui_backend.db.database import Base
-from samui_backend.enums import AnnotationSource, ProcessingStatus, PromptType, SegmentationMode
+from samui_backend.enums import JobStatus, PromptType, SegmentationMode
 
 # Re-export enums for backward compatibility
 __all__ = [
-    "AnnotationSource",
-    "ProcessingStatus",
+    "JobStatus",
     "PromptType",
     "SegmentationMode",
     "Image",
     "Annotation",
     "ProcessingResult",
+    "ProcessingJob",
 ]
 
 
@@ -35,16 +36,13 @@ class Image(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
-    processing_status: Mapped[ProcessingStatus] = mapped_column(
-        Enum(ProcessingStatus), default=ProcessingStatus.PENDING, nullable=False
-    )
     text_prompt: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     annotations: Mapped[list["Annotation"]] = relationship(
         "Annotation", back_populates="image", cascade="all, delete-orphan"
     )
-    processing_result: Mapped["ProcessingResult | None"] = relationship(
-        "ProcessingResult", back_populates="image", cascade="all, delete-orphan", uselist=False
+    processing_results: Mapped[list["ProcessingResult"]] = relationship(
+        "ProcessingResult", back_populates="image", cascade="all, delete-orphan"
     )
 
 
@@ -62,9 +60,6 @@ class Annotation(Base):
     bbox_width: Mapped[int] = mapped_column(Integer, nullable=False)
     bbox_height: Mapped[int] = mapped_column(Integer, nullable=False)
     prompt_type: Mapped[PromptType] = mapped_column(Enum(PromptType), default=PromptType.SEGMENT, nullable=False)
-    source: Mapped[AnnotationSource] = mapped_column(
-        Enum(AnnotationSource), default=AnnotationSource.USER, nullable=False
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
@@ -72,13 +67,39 @@ class Annotation(Base):
     image: Mapped["Image"] = relationship("Image", back_populates="annotations")
 
 
+class ProcessingJob(Base):
+    """Processing job model tracking batch processing with queue support."""
+
+    __tablename__ = "processing_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    mode: Mapped[SegmentationMode] = mapped_column(
+        Enum(SegmentationMode), default=SegmentationMode.INSIDE_BOX, nullable=False
+    )
+    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.QUEUED, nullable=False)
+    image_ids: Mapped[list] = mapped_column(JSON, nullable=False)  # list of UUID strings
+    current_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+
+    results: Mapped[list["ProcessingResult"]] = relationship("ProcessingResult", back_populates="job")
+
+
 class ProcessingResult(Base):
     """Processing result model storing mask and COCO JSON paths."""
 
     __tablename__ = "processing_results"
-    __table_args__ = (UniqueConstraint("image_id", "mode", name="uq_processing_result_image_mode"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("processing_jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     image_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("images.id", ondelete="CASCADE"),
@@ -92,6 +113,9 @@ class ProcessingResult(Base):
     processed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
-    batch_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    annotation_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)  # list of UUID strings
+    text_prompt_used: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    bboxes: Mapped[list | None] = mapped_column(JSON, nullable=True)  # list of {x, y, width, height}
 
-    image: Mapped["Image"] = relationship("Image", back_populates="processing_result")
+    job: Mapped["ProcessingJob"] = relationship("ProcessingJob", back_populates="results")
+    image: Mapped["Image"] = relationship("Image", back_populates="processing_results")

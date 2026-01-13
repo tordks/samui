@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from samui_backend.db.database import SessionLocal, get_db
 from samui_backend.db.models import Annotation, Image, ProcessingResult
 from samui_backend.dependencies import get_sam3_service, get_storage_service
-from samui_backend.enums import AnnotationSource, ProcessingStatus, PromptType, SegmentationMode
+from samui_backend.enums import PromptType, SegmentationMode
 from samui_backend.schemas import ProcessRequest, ProcessResponse, ProcessStatus
 from samui_backend.services import SAM3Service, StorageService, generate_coco_json
 from samui_backend.utils import get_blob_path_suffix
@@ -144,8 +144,6 @@ def _process_single_image(
     )
     if not annotations:
         logger.warning(f"No segment annotations for image {image.id}, skipping")
-        image.processing_status = ProcessingStatus.ANNOTATED
-        db.commit()
         return False
 
     bboxes = [(ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height) for ann in annotations]
@@ -156,7 +154,6 @@ def _process_single_image(
 
     _save_processing_result(db, image.id, mode, mask_blob_path, coco_blob_path, batch_id, existing_result)
 
-    image.processing_status = ProcessingStatus.PROCESSED
     db.commit()
     logger.info(f"Processed image {image.id} ({image.filename}) with mode {mode.value}")
     return True
@@ -194,8 +191,6 @@ def _process_single_image_find_all(
     # Validate: need text prompt or exemplars
     if not text_prompt and not exemplar_annotations:
         logger.warning(f"No text prompt or exemplars for image {image.id} in find-all mode, skipping")
-        image.processing_status = ProcessingStatus.ANNOTATED
-        db.commit()
         return False
 
     # Load image data
@@ -216,20 +211,6 @@ def _process_single_image_find_all(
     # Run find-all inference
     find_result = sam3.process_image_find_all(pil_image, text_prompt, exemplar_boxes)
 
-    # Create annotations for discovered objects
-    for x, y, w, h in find_result.bboxes:
-        db.add(
-            Annotation(
-                image_id=image.id,
-                bbox_x=x,
-                bbox_y=y,
-                bbox_width=w,
-                bbox_height=h,
-                prompt_type=PromptType.SEGMENT,
-                source=AnnotationSource.MODEL,
-            )
-        )
-
     # Save masks and COCO JSON
     mode = SegmentationMode.FIND_ALL
     if find_result.masks.size > 0:
@@ -243,7 +224,6 @@ def _process_single_image_find_all(
 
     _save_processing_result(db, image.id, mode, mask_blob_path, coco_blob_path, batch_id, existing_result)
 
-    image.processing_status = ProcessingStatus.PROCESSED
     db.commit()
     logger.info(
         f"Processed image {image.id} ({image.filename}) with find-all mode, "
@@ -288,9 +268,6 @@ def _process_images_background(
                 logger.info(f"Image {image_id} already processed with mode {mode.value}, skipping")
                 _processing_state["processed_count"] = idx + 1
                 continue
-
-            image.processing_status = ProcessingStatus.PROCESSING
-            db.commit()
 
             try:
                 # Route to appropriate processing function based on mode

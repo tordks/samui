@@ -233,9 +233,7 @@ class SAM3Service:
 
         return Datapoint(images=[sam_image], find_queries=[find_query])
 
-    def _normalize_mask_output(
-        self, masks_data: torch.Tensor | list, height: int, width: int
-    ) -> NDArray[np.uint8]:
+    def _normalize_mask_output(self, masks_data: torch.Tensor | list, height: int, width: int) -> NDArray[np.uint8]:
         """Normalize SAM3 mask output to binary numpy array.
 
         Args:
@@ -266,15 +264,12 @@ class SAM3Service:
         # Binarize
         return (masks > 0).astype(np.uint8) * 255
 
-    def _boxes_xyxy_to_xywh(
-        self, boxes_tensor: torch.Tensor
-    ) -> list[tuple[int, int, int, int]]:
+    def _boxes_xyxy_to_xywh(self, boxes_tensor: torch.Tensor) -> list[tuple[int, int, int, int]]:
         """Convert box tensor from xyxy to xywh format."""
         if boxes_tensor.numel() == 0:
             return []
         boxes_np = boxes_tensor.float().cpu().numpy()
-        return [(int(x1), int(y1), int(x2 - x1), int(y2 - y1))
-                for x1, y1, x2, y2 in boxes_np]
+        return [(int(x1), int(y1), int(x2 - x1), int(y2 - y1)) for x1, y1, x2, y2 in boxes_np]
 
     def process_image_find_all(
         self,
@@ -335,9 +330,7 @@ class SAM3Service:
             return FindAllResult.empty(image.height, image.width)
 
         result_data = results[1]
-        masks = self._normalize_mask_output(
-            result_data.get("masks", []), image.height, image.width
-        )
+        masks = self._normalize_mask_output(result_data.get("masks", []), image.height, image.width)
         scores = result_data.get("scores", torch.tensor([])).float().cpu().numpy().astype(np.float32)
         bboxes = self._boxes_xyxy_to_xywh(result_data.get("boxes", torch.tensor([])))
 

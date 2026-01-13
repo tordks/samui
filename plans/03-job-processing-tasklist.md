@@ -8,29 +8,29 @@
 
 **Tasks:**
 
-- [ ] [P1.1] Add `JobStatus` enum to `enums.py` with values: queued, running, completed, failed
-- [ ] [P1.2] Remove `AnnotationSource` enum from `enums.py` (no longer needed)
-- [ ] [P1.3] Create `ProcessingJob` model in `db/models.py`
+- [x] [P1.1] Add `JobStatus` enum to `enums.py` with values: queued, running, completed, failed
+- [x] [P1.2] Remove `AnnotationSource` enum from `enums.py` (no longer needed)
+- [x] [P1.3] Create `ProcessingJob` model in `db/models.py`
   - Fields: id, mode, status, image_ids (JSON), current_index, created_at, started_at, completed_at, error
   - Add relationship to ProcessingResult
-- [ ] [P1.4] Modify `ProcessingResult` in `db/models.py`: Add `job_id` foreign key
-- [ ] [P1.5] Modify `ProcessingResult` in `db/models.py`: Add `text_prompt_used` field (nullable string)
-- [ ] [P1.6] Modify `ProcessingResult` in `db/models.py`: Add `annotation_ids` field (JSON, list of UUID strings for input annotations)
-- [ ] [P1.7] Modify `ProcessingResult` in `db/models.py`: Add `bboxes` field (JSON, list of bbox dicts for SAM3 discoveries)
-- [ ] [P1.8] Modify `ProcessingResult` in `db/models.py`: Remove unique constraint on (image_id, mode)
-- [ ] [P1.9] Update blob path format: use `result_id` instead of `image_id` for history support
+- [x] [P1.4] Modify `ProcessingResult` in `db/models.py`: Add `job_id` foreign key
+- [x] [P1.5] Modify `ProcessingResult` in `db/models.py`: Add `text_prompt_used` field (nullable string)
+- [x] [P1.6] Modify `ProcessingResult` in `db/models.py`: Add `annotation_ids` field (JSON, list of UUID strings for input annotations)
+- [x] [P1.7] Modify `ProcessingResult` in `db/models.py`: Add `bboxes` field (JSON, list of bbox dicts for SAM3 discoveries)
+- [x] [P1.8] Modify `ProcessingResult` in `db/models.py`: Remove unique constraint on (image_id, mode)
+- [x] [P1.9] Update blob path format: use `result_id` instead of `image_id` for history support
   - `masks/{result_id}.png` and `coco/{result_id}.json`
   - Update processing logic to generate paths using result_id
-- [ ] [P1.10] Modify `Image` in `db/models.py`: Remove `processing_status` field
-- [ ] [P1.11] Modify `Image` in `db/models.py`: Change `processing_result` relationship to `processing_results` (list)
-- [ ] [P1.12] Modify `Annotation` in `db/models.py`: Remove `source` field
-- [ ] [P1.13] Run test collection to verify models compile: `cd packages/samui-backend && uv run pytest ../../tests/ -v --collect-only`
+- [x] [P1.10] Modify `Image` in `db/models.py`: Remove `processing_status` field
+- [x] [P1.11] Modify `Image` in `db/models.py`: Change `processing_result` relationship to `processing_results` (list)
+- [x] [P1.12] Modify `Annotation` in `db/models.py`: Remove `source` field
+- [x] [P1.13] Run test collection to verify models compile: `cd packages/samui-backend && uv run pytest ../../tests/ -v --collect-only`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
-- [ ] Review: Verify all model changes are complete and consistent
+- [x] Code quality: Run `uvx ruff check packages/samui-backend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
+- [x] Review: Verify all model changes are complete and consistent
 
 **Phase 1 Complete:** Data models updated with ProcessingJob, enhanced ProcessingResult, removed deprecated fields.
 

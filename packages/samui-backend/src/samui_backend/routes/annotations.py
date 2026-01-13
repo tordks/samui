@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
 from samui_backend.db.models import Annotation, Image
-from samui_backend.enums import AnnotationSource, ProcessingStatus, PromptType
+from samui_backend.enums import PromptType
 from samui_backend.schemas import AnnotationCreate, AnnotationList, AnnotationResponse
 
 router = APIRouter(prefix="/annotations", tags=["annotations"])
@@ -47,11 +47,6 @@ def create_annotation(
         prompt_type=annotation.prompt_type,
     )
     db.add(db_annotation)
-
-    # Update image status to annotated if this is the first annotation
-    if image.processing_status == ProcessingStatus.PENDING:
-        image.processing_status = ProcessingStatus.ANNOTATED
-
     db.commit()
     db.refresh(db_annotation)
 
@@ -62,10 +57,9 @@ def create_annotation(
 def get_annotations(
     image_id: uuid.UUID,
     prompt_type: PromptType | None = None,
-    source: AnnotationSource | None = None,
     db: Session = Depends(get_db),
 ) -> dict:
-    """Get all annotations for an image, optionally filtered by prompt_type and/or source."""
+    """Get all annotations for an image, optionally filtered by prompt_type."""
     # Verify image exists
     image = db.query(Image).filter(Image.id == image_id).first()
     if not image:
@@ -74,8 +68,6 @@ def get_annotations(
     query = db.query(Annotation).filter(Annotation.image_id == image_id)
     if prompt_type is not None:
         query = query.filter(Annotation.prompt_type == prompt_type)
-    if source is not None:
-        query = query.filter(Annotation.source == source)
 
     annotations = query.order_by(Annotation.created_at.asc()).all()
     return {"annotations": annotations, "total": len(annotations)}

@@ -6,8 +6,6 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 from samui_backend.enums import (
-    AnnotationSource,
-    ProcessingStatus,
     PromptType,
     SegmentationMode,
 )
@@ -33,7 +31,6 @@ class ImageResponse(BaseModel):
     width: int
     height: int
     created_at: datetime
-    processing_status: ProcessingStatus
     text_prompt: str | None = None
 
 
@@ -73,7 +70,6 @@ class AnnotationResponse(BaseModel):
     bbox_width: int
     bbox_height: int
     prompt_type: PromptType
-    source: AnnotationSource
     created_at: datetime
 
 
@@ -117,9 +113,12 @@ class ProcessingResultResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    job_id: uuid.UUID
     image_id: uuid.UUID
     mode: SegmentationMode
     mask_blob_path: str
     coco_json_blob_path: str
     processed_at: datetime
-    batch_id: uuid.UUID
+    annotation_ids: list[str] | None = None
+    text_prompt_used: str | None = None
+    bboxes: list[dict] | None = None
