@@ -278,33 +278,33 @@
 
 **Tasks:**
 
-- [ ] [P9.1] Create `pages/history.py` with basic page structure
+- [x] [P9.1] Create `pages/history.py` with basic page structure
   - Page title and mode toggle
   - Fetch all images from API
-- [ ] [P9.2] Add arrow navigator for image selection
+- [x] [P9.2] Add arrow navigator for image selection
   - Use ArrowNavigator component
   - Display current image filename
-- [ ] [P9.3] Display original image at top of page
+- [x] [P9.3] Display original image at top of page
   - Fetch and display selected image
   - Show filename and dimensions
-- [ ] [P9.4] Fetch processing history for selected image
+- [x] [P9.4] Fetch processing history for selected image
   - Call fetch_image_history(image_id, mode)
-- [ ] [P9.5] Create `_create_history_overlay(result, image_data)` function
+- [x] [P9.5] Create `_create_history_overlay(result, image_data)` function
   - Fetch mask using fetch_result_mask
   - Draw bboxes from result.bboxes
   - Apply mask overlay
   - Return PIL Image
-- [ ] [P9.6] Display history gallery with timestamps
+- [x] [P9.6] Display history gallery with timestamps
   - Use image_gallery component
   - Show processed_at formatted as label
   - Newest first ordering
-- [ ] [P9.7] Update `app.py`: Add History page to sidebar navigation
-- [ ] [P9.8] Manual test: End-to-end history page flow
+- [x] [P9.7] Update `app.py`: Add History page to sidebar navigation
+- [x] [P9.8] Manual test: End-to-end history page flow
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
+- [x] Code quality: Run `uvx ruff check packages/samui-frontend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
 
 **Phase 9 Complete:** Image History page fully functional.
 

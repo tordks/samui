@@ -291,7 +291,7 @@ def fetch_image_history(image_id: str, mode: SegmentationMode) -> list[dict]:
             timeout=API_TIMEOUT_READ,
         )
         response.raise_for_status()
-        return response.json().get("results", [])
+        return response.json()
     except httpx.HTTPError:
         return []
 
