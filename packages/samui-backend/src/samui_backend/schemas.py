@@ -3,9 +3,10 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from samui_backend.enums import (
+    JobStatus,
     PromptType,
     SegmentationMode,
 )
@@ -122,3 +123,47 @@ class ProcessingResultResponse(BaseModel):
     annotation_ids: list[str] | None = None
     text_prompt_used: str | None = None
     bboxes: list[dict] | None = None
+
+
+class ProcessingJobCreate(BaseModel):
+    """Schema for creating a processing job."""
+
+    image_ids: list[uuid.UUID]
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX
+    force_all: bool = False
+
+
+class ProcessingJobResponse(BaseModel):
+    """Schema for processing job response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    mode: SegmentationMode
+    status: JobStatus
+    image_ids: list[str]
+    current_index: int
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error: str | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def image_count(self) -> int:
+        """Return the total number of images in the job."""
+        return len(self.image_ids)
+
+
+class ProcessingHistoryResponse(BaseModel):
+    """Schema for processing history response (for image history page)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    job_id: uuid.UUID
+    mode: SegmentationMode
+    processed_at: datetime
+    text_prompt_used: str | None = None
+    bboxes: list[dict] | None = None
+    mask_blob_path: str

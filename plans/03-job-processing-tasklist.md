@@ -44,23 +44,23 @@
 
 **Tasks:**
 
-- [ ] [P2.1] Add `JobStatus` to schema imports in `schemas.py`
-- [ ] [P2.2] Create `ProcessingJobCreate` schema in `schemas.py`
+- [x] [P2.1] Add `JobStatus` to schema imports in `schemas.py`
+- [x] [P2.2] Create `ProcessingJobCreate` schema in `schemas.py`
   - Fields: image_ids (list[UUID]), mode
-- [ ] [P2.3] Create `ProcessingJobResponse` schema in `schemas.py`
+- [x] [P2.3] Create `ProcessingJobResponse` schema in `schemas.py`
   - Fields: id, mode, status, image_ids, current_index, created_at, started_at, completed_at, error, image_count (computed)
-- [ ] [P2.4] Create `ProcessingHistoryResponse` schema in `schemas.py`
+- [x] [P2.4] Create `ProcessingHistoryResponse` schema in `schemas.py`
   - Fields: id, job_id, mode, processed_at, text_prompt_used, bboxes, mask_blob_path
-- [ ] [P2.5] Modify `ImageResponse` in `schemas.py`: Remove `processing_status` field
-- [ ] [P2.6] Modify `AnnotationResponse` in `schemas.py`: Remove `source` field if present
-- [ ] [P2.7] Update any `AnnotationCreate` schema: Remove `source` field if present
-- [ ] [P2.8] Add `force_all` boolean field to `ProcessingJobCreate` schema (default False)
+- [x] [P2.5] Modify `ImageResponse` in `schemas.py`: Remove `processing_status` field
+- [x] [P2.6] Modify `AnnotationResponse` in `schemas.py`: Remove `source` field if present
+- [x] [P2.7] Update any `AnnotationCreate` schema: Remove `source` field if present
+- [x] [P2.8] Add `force_all` boolean field to `ProcessingJobCreate` schema (default False)
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-backend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
-- [ ] Review: Verify schemas match model changes
+- [x] Code quality: Run `uvx ruff check packages/samui-backend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-backend/ --check`
+- [x] Review: Verify schemas match model changes
 
 **Phase 2 Complete:** Schemas updated for job-based processing.
 
