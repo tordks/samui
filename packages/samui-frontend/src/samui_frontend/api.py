@@ -4,7 +4,7 @@ import httpx
 
 from samui_frontend.config import API_URL
 from samui_frontend.constants import API_TIMEOUT_READ, API_TIMEOUT_WRITE
-from samui_frontend.models import AnnotationSource, PromptType, SegmentationMode
+from samui_frontend.models import PromptType, SegmentationMode
 
 
 def fetch_images() -> list[dict]:
@@ -31,8 +31,6 @@ def fetch_image_data(image_id: str) -> bytes | None:
 def fetch_annotations(
     image_id: str,
     mode: SegmentationMode | None = None,
-    for_display: bool = False,
-    exclude_model: bool = False,
 ) -> list[dict]:
     """Fetch annotations for an image, optionally filtered by segmentation mode.
 
@@ -41,11 +39,6 @@ def fetch_annotations(
         mode: If provided, filter annotations by mode:
             - INSIDE_BOX: only SEGMENT prompt_type
             - FIND_ALL: both POSITIVE_EXEMPLAR and NEGATIVE_EXEMPLAR prompt_types
-                (or SEGMENT with source=MODEL when for_display=True)
-        for_display: If True in FIND_ALL mode, fetch model-generated results
-            instead of user-provided exemplars.
-        exclude_model: If True for INSIDE_BOX mode, exclude model-generated
-            annotations (only return user-created).
     """
     try:
         if mode is None:
@@ -54,32 +47,15 @@ def fetch_annotations(
             return response.json().get("annotations", [])
 
         if mode == SegmentationMode.INSIDE_BOX:
-            params: dict = {"prompt_type": PromptType.SEGMENT.value}
-            if exclude_model:
-                params["source"] = AnnotationSource.USER.value
             response = httpx.get(
                 f"{API_URL}/annotations/{image_id}",
-                params=params,
+                params={"prompt_type": PromptType.SEGMENT.value},
                 timeout=API_TIMEOUT_READ,
             )
             response.raise_for_status()
             return response.json().get("annotations", [])
 
-        # FIND_ALL mode
-        if for_display:
-            # Fetch model-generated segment annotations (the discovered objects)
-            response = httpx.get(
-                f"{API_URL}/annotations/{image_id}",
-                params={
-                    "prompt_type": PromptType.SEGMENT.value,
-                    "source": AnnotationSource.MODEL.value,
-                },
-                timeout=API_TIMEOUT_READ,
-            )
-            response.raise_for_status()
-            return response.json().get("annotations", [])
-
-        # Fetch user-provided exemplars (positive and negative)
+        # FIND_ALL mode - fetch user-provided exemplars (positive and negative)
         annotations = []
         for pt in [PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]:
             response = httpx.get(

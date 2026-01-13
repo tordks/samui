@@ -27,7 +27,7 @@ def _create_bbox_overlay(image: dict, image_data: bytes) -> Image.Image:
 
     # Get current mode from session state
     mode = st.session_state.get("segmentation_mode", SegmentationMode.INSIDE_BOX)
-    annotations = fetch_annotations(image["id"], mode, exclude_model=True)
+    annotations = fetch_annotations(image["id"], mode)
 
     if not annotations:
         return pil_image.convert("RGB")
@@ -278,7 +278,7 @@ def render() -> None:
         st.session_state.selected_image_index = 0
 
     current_image = images[st.session_state.selected_image_index]
-    annotations = fetch_annotations(current_image["id"], current_mode, exclude_model=True)
+    annotations = fetch_annotations(current_image["id"], current_mode)
 
     # Show find-all controls (text prompt + exemplar type toggle)
     exemplar_type = PromptType.SEGMENT  # Default for inside_box mode

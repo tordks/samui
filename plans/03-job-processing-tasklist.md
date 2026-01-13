@@ -222,22 +222,22 @@
 
 **Tasks:**
 
-- [ ] [P7.1] Modify `pages/processing.py`: Remove references to `processing_status` field
-- [ ] [P7.2] Modify `pages/processing.py`: Add "Process All" button next to "Process" button
-- [ ] [P7.3] Modify `pages/processing.py`: Update "Process" button to call create_job with process_all=False
-- [ ] [P7.4] Modify `pages/processing.py`: Update "Process All" button to call create_job with process_all=True
-- [ ] [P7.5] Modify `pages/processing.py`: Update progress display to poll `GET /jobs/{job_id}` using `fetch_job()`
+- [x] [P7.1] Modify `pages/processing.py`: Remove references to `processing_status` field
+- [x] [P7.2] Modify `pages/processing.py`: Add "Process All" button next to "Process" button
+- [x] [P7.3] Modify `pages/processing.py`: Update "Process" button to call create_job with process_all=False
+- [x] [P7.4] Modify `pages/processing.py`: Update "Process All" button to call create_job with process_all=True
+- [x] [P7.5] Modify `pages/processing.py`: Update progress display to poll `GET /jobs/{job_id}` using `fetch_job()`
   - Store job_id from create_job response
   - Use computed fields: `is_running`, `processed_count`, `current_image_filename`
-- [ ] [P7.6] Modify `pages/annotation.py`: Remove any references to `processing_status`
-- [ ] [P7.7] Modify `pages/annotation.py`: Remove any references to annotation `source`
-- [ ] [P7.8] Manual test: Verify processing page works with new job-based flow
+- [x] [P7.6] Modify `pages/annotation.py`: Remove any references to `processing_status`
+- [x] [P7.7] Modify `pages/annotation.py`: Remove any references to annotation `source`
+- [x] [P7.8] Manual test: Verify processing page works with new job-based flow
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
-- [ ] Review: Processing flow works end-to-end
+- [x] Code quality: Run `uvx ruff check packages/samui-frontend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
+- [x] Review: Processing flow works end-to-end
 
 **Phase 7 Complete:** Processing page updated for job-based flow with both buttons.
 

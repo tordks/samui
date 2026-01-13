@@ -7,12 +7,12 @@ import streamlit as st
 from PIL import Image, ImageDraw
 
 from samui_frontend.api import (
+    create_job,
     download_coco_json,
     fetch_annotations,
     fetch_images,
+    fetch_job,
     fetch_mask_data,
-    get_processing_status,
-    start_processing,
 )
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
 from samui_frontend.components.mode_toggle import render_mode_toggle
@@ -84,14 +84,10 @@ def _create_gallery_overlay(image: dict, image_data: bytes) -> Image.Image:
     and raw image for pending. Uses current segmentation mode from session state.
     """
     mode = st.session_state.get("segmentation_mode", SegmentationMode.INSIDE_BOX)
-    annotations = fetch_annotations(image["id"], mode, for_display=True)
+    annotations = fetch_annotations(image["id"], mode)
 
-    # Check if image has been processed for this mode
-    # For now, we only show mask if we have annotations for the mode
-    # The mask endpoint handles mode-specific results
-    mask_data = None
-    if annotations:
-        mask_data = fetch_mask_data(image["id"], mode)
+    # Try to get mask for this mode - will be None if not processed
+    mask_data = fetch_mask_data(image["id"], mode)
 
     return _create_overlay_image(image_data, mask_data, annotations, mode)
 
@@ -199,30 +195,37 @@ def _render_processing_status(mode: SegmentationMode, ready_count: int) -> None:
     When processed_count changes, triggers a full rerun to update the gallery.
     """
     mode_label = "Inside Box" if mode == SegmentationMode.INSIDE_BOX else "Find All"
-    status = get_processing_status()
+    job_id = st.session_state.get("current_job_id")
 
-    if status and status.get("is_running"):
-        processed = status.get("processed_count", 0)
-        total = status.get("total_count", 0)
-        current_filename = status.get("current_image_filename", "")
+    if job_id:
+        job = fetch_job(job_id)
+        if job and job.get("is_running"):
+            processed = job.get("processed_count", 0)
+            total = job.get("image_count", 0)
+            current_filename = job.get("current_image_filename", "")
 
-        progress = processed / total if total > 0 else 0
-        st.progress(progress, f"Processing ({mode_label}): {processed} of {total} ({current_filename})")
+            progress = processed / total if total > 0 else 0
+            st.progress(progress, f"Processing ({mode_label}): {processed} of {total} ({current_filename})")
 
-        # Trigger full page rerun when an image finishes processing
-        # This updates the gallery to show new results
-        last_count = st.session_state.get("last_processed_count", 0)
-        if processed > last_count:
-            st.session_state.last_processed_count = processed
-            st.rerun()
-    elif status and status.get("error"):
-        st.error(f"Processing failed: {status.get('error')}")
-        # Reset counter on error
-        st.session_state.last_processed_count = 0
-    elif status and status.get("batch_id") and status.get("processed_count", 0) > 0:
-        st.success(f"Processing complete! {status.get('processed_count')} images processed.")
-        # Reset counter when complete
-        st.session_state.last_processed_count = 0
+            # Trigger full page rerun when an image finishes processing
+            # This updates the gallery to show new results
+            last_count = st.session_state.get("last_processed_count", 0)
+            if processed > last_count:
+                st.session_state.last_processed_count = processed
+                st.rerun()
+        elif job and job.get("error"):
+            st.error(f"Processing failed: {job.get('error')}")
+            # Reset state on error
+            st.session_state.last_processed_count = 0
+            st.session_state.current_job_id = None
+        elif job and job.get("status") == "completed":
+            st.success(f"Processing complete! {job.get('processed_count', 0)} images processed.")
+            # Reset state when complete
+            st.session_state.last_processed_count = 0
+            st.session_state.current_job_id = None
+        else:
+            # Job not found or unexpected state - clear it
+            st.session_state.current_job_id = None
     elif ready_count == 0:
         if mode == SegmentationMode.INSIDE_BOX:
             st.info("No images with segment boxes. Add annotations first.")
@@ -237,31 +240,47 @@ def _render_process_controls(
     processed_images: list[dict],
     mode: SegmentationMode,
 ) -> None:
-    """Render the process button, download button, and progress indicator."""
-
-    mode_label = "Inside Box" if mode == SegmentationMode.INSIDE_BOX else "Find All"
+    """Render the process buttons, download button, and progress indicator."""
     st.subheader("Processing Controls")
 
-    col1, col2, col3 = st.columns([1, 1, 2])
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
 
     with col1:
         process_disabled = len(ready_images) == 0
-        button_label = f"Process ({mode_label})"
         if st.button(
-            button_label,
+            "Process",
             disabled=process_disabled,
             type="primary",
+            help="Process only images with changed annotations",
         ):
             image_ids = [img["id"] for img in ready_images]
-            result = start_processing(image_ids, mode)
+            result = create_job(image_ids, mode, force_all=False)
             if result:
-                st.session_state.processing_batch_id = result.get("batch_id")
-                st.success(f"Processing started for {result.get('total_images')} images")
+                st.session_state.current_job_id = result.get("id")
+                st.session_state.last_processed_count = 0
+                st.success(f"Job created for {result.get('image_count', 0)} images")
                 st.rerun()
             else:
-                st.error("Failed to start processing")
+                st.error("Failed to create processing job")
 
     with col2:
+        process_all_disabled = len(ready_images) == 0
+        if st.button(
+            "Process All",
+            disabled=process_all_disabled,
+            help="Process all images regardless of changes",
+        ):
+            image_ids = [img["id"] for img in ready_images]
+            result = create_job(image_ids, mode, force_all=True)
+            if result:
+                st.session_state.current_job_id = result.get("id")
+                st.session_state.last_processed_count = 0
+                st.success(f"Job created for {result.get('image_count', 0)} images")
+                st.rerun()
+            else:
+                st.error("Failed to create processing job")
+
+    with col3:
         if processed_images:
             coco_data = _download_all_coco_json(processed_images, mode)
             if coco_data:
@@ -271,10 +290,12 @@ def _render_process_controls(
                     file_name=f"coco_annotations_{mode.value}.json",
                     mime="application/json",
                 )
+            else:
+                st.button("Download All COCO", disabled=True, help="No processed results available")
         else:
             st.button("Download All COCO", disabled=True)
 
-    with col3:
+    with col4:
         _render_processing_status(mode, len(ready_images))
 
 
@@ -335,11 +356,9 @@ def render() -> None:
     # Get images ready for processing in current mode
     ready_images = _get_images_ready_for_mode(images, current_mode)
 
-    # For processed images, we still show all - the gallery overlay handles mode-specific display
-    processed_images = [img for img in images if img.get("processing_status") == "processed"]
-
     # Render processing controls with mode
-    _render_process_controls(ready_images, processed_images, current_mode)
+    # For download, use ready_images - the download function handles missing results gracefully
+    _render_process_controls(ready_images, ready_images, current_mode)
 
     st.divider()
 
