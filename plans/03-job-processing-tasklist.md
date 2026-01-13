@@ -318,27 +318,27 @@
 
 **Tasks:**
 
-- [ ] [P10.1] Create `pages/jobs.py` with basic page structure
+- [x] [P10.1] Create `pages/jobs.py` with basic page structure
   - Page title
   - Fetch all jobs from API
-- [ ] [P10.2] Display job list with status indicators
+- [x] [P10.2] Display job list with status indicators
   - Show status icon/badge (queued, running, completed, failed)
   - Show mode, image count, timestamps
-- [ ] [P10.3] Display progress for running jobs
+- [x] [P10.3] Display progress for running jobs
   - Show current_index / image_count
   - Show current image filename if available
-- [ ] [P10.4] Display duration for completed jobs
+- [x] [P10.4] Display duration for completed jobs
   - Calculate from started_at to completed_at
-- [ ] [P10.5] Display error message for failed jobs
-- [ ] [P10.6] Add auto-refresh for running jobs
+- [x] [P10.5] Display error message for failed jobs
+- [x] [P10.6] Add auto-refresh for running jobs
   - Poll for updates while any job is running
-- [ ] [P10.7] Update `app.py`: Add Jobs page to sidebar navigation
-- [ ] [P10.8] Manual test: End-to-end jobs page flow
+- [x] [P10.7] Update `app.py`: Add Jobs page to sidebar navigation
+- [x] [P10.8] Manual test: End-to-end jobs page flow
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/samui-frontend/`
-- [ ] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
+- [x] Code quality: Run `uvx ruff check packages/samui-frontend/`
+- [x] Code formatting: Run `uvx ruff format packages/samui-frontend/ --check`
 
 **Phase 10 Complete:** Jobs page fully functional.
 

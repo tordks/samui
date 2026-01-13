@@ -251,7 +251,7 @@ def fetch_jobs() -> list[dict]:
     try:
         response = httpx.get(f"{API_URL}/jobs", timeout=API_TIMEOUT_READ)
         response.raise_for_status()
-        return response.json().get("jobs", [])
+        return response.json()
     except httpx.HTTPError:
         return []
 
