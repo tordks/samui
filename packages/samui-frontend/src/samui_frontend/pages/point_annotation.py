@@ -199,23 +199,34 @@ def _render_action_buttons(image_id: str, points: list[dict]) -> None:
         st.rerun()
 
 
-def _render_mask_controls_sidebar() -> tuple[bool, int]:
-    """Render mask overlay controls in sidebar.
+def _render_overlay_controls_sidebar() -> tuple[bool, int, bool]:
+    """Render overlay controls in sidebar.
 
     Returns:
-        Tuple of (show_mask, opacity).
+        Tuple of (show_mask, opacity, show_points).
     """
-    st.subheader("Mask Overlay")
+    st.subheader("Display")
 
-    show_mask = st.checkbox(
-        "Show Mask",
-        value=st.session_state.point_show_mask,
-        key="point_show_mask_checkbox",
-    )
-    st.session_state.point_show_mask = show_mask
+    col1, col2 = st.columns(2)
+
+    with col1:
+        show_points = st.checkbox(
+            "Show Points",
+            value=st.session_state.point_show_points,
+            key="point_show_points_checkbox",
+        )
+        st.session_state.point_show_points = show_points
+
+    with col2:
+        show_mask = st.checkbox(
+            "Show Mask",
+            value=st.session_state.point_show_mask,
+            key="point_show_mask_checkbox",
+        )
+        st.session_state.point_show_mask = show_mask
 
     opacity = st.slider(
-        "Opacity",
+        "Mask Opacity",
         min_value=0,
         max_value=100,
         value=st.session_state.point_mask_opacity,
@@ -224,7 +235,7 @@ def _render_mask_controls_sidebar() -> tuple[bool, int]:
     )
     st.session_state.point_mask_opacity = opacity
 
-    return show_mask, opacity
+    return show_mask, opacity, show_points
 
 
 def _render_instructions() -> None:
@@ -270,6 +281,7 @@ def _render_combined_image(
     is_positive: bool,
     show_mask: bool,
     mask_opacity: int,
+    show_points: bool,
 ) -> None:
     """Render a single image with mask overlay (if available) and points.
 
@@ -297,10 +309,12 @@ def _render_combined_image(
 
     # Pass the (potentially masked) image to point_annotator
     # which will draw points on top and handle click detection
+    # If show_points is False, pass empty list to hide points visually
+    visible_points = points if show_points else []
     click = point_annotator(
         base_image,
-        points,
-        key=f"point_annotator_{image_id}_{interaction_mode}_{show_mask}_{mask_opacity}",
+        visible_points,
+        key=f"point_annotator_{image_id}_{interaction_mode}_{show_mask}_{mask_opacity}_{show_points}",
     )
 
     if click:
@@ -333,6 +347,8 @@ def _init_session_state() -> None:
         st.session_state.point_show_mask = True
     if "point_mask_opacity" not in st.session_state:
         st.session_state.point_mask_opacity = 50
+    if "point_show_points" not in st.session_state:
+        st.session_state.point_show_points = True
 
 
 def render() -> None:
@@ -377,13 +393,15 @@ def render() -> None:
         _render_processing_status()
 
         st.divider()
-        show_mask, mask_opacity = _render_mask_controls_sidebar()
+        show_mask, mask_opacity, show_points = _render_overlay_controls_sidebar()
 
         _render_instructions()
 
     # Main content - single combined image
     with main_col:
         _render_navigation_controls(images, key_suffix="top")
-        _render_combined_image(current_image, points, interaction_mode, is_positive, show_mask, mask_opacity)
+        _render_combined_image(
+            current_image, points, interaction_mode, is_positive, show_mask, mask_opacity, show_points
+        )
         _render_navigation_controls(images, key_suffix="bottom")
         _render_thumbnail_gallery(images)
