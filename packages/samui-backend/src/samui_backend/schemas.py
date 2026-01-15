@@ -48,8 +48,8 @@ class ImageList(BaseModel):
     total: int
 
 
-class AnnotationCreate(BaseModel):
-    """Schema for creating an annotation."""
+class BboxAnnotationCreate(BaseModel):
+    """Schema for creating a bounding box annotation."""
 
     image_id: uuid.UUID
     bbox_x: int
@@ -59,8 +59,8 @@ class AnnotationCreate(BaseModel):
     prompt_type: PromptType = PromptType.SEGMENT
 
 
-class AnnotationResponse(BaseModel):
-    """Schema for annotation response."""
+class BboxAnnotationResponse(BaseModel):
+    """Schema for bounding box annotation response."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -74,10 +74,39 @@ class AnnotationResponse(BaseModel):
     created_at: datetime
 
 
-class AnnotationList(BaseModel):
-    """Schema for list of annotations response."""
+class BboxAnnotationList(BaseModel):
+    """Schema for list of bounding box annotations response."""
 
-    annotations: list[AnnotationResponse]
+    annotations: list[BboxAnnotationResponse]
+    total: int
+
+
+class PointAnnotationCreate(BaseModel):
+    """Schema for creating a point annotation."""
+
+    image_id: uuid.UUID
+    point_x: int
+    point_y: int
+    is_positive: bool = True
+
+
+class PointAnnotationResponse(BaseModel):
+    """Schema for point annotation response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    image_id: uuid.UUID
+    point_x: int
+    point_y: int
+    is_positive: bool
+    created_at: datetime
+
+
+class PointAnnotationList(BaseModel):
+    """Schema for list of point annotations response."""
+
+    annotations: list[PointAnnotationResponse]
     total: int
 
 

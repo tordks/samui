@@ -12,53 +12,53 @@ Step-by-step implementation guide for point-based segmentation mode.
 
 **Tasks:**
 
-- [ ] [P1.1] Rename `Annotation` class to `BboxAnnotation` in `packages/samui-backend/src/samui_backend/db/models.py`
+- [x] [P1.1] Rename `Annotation` class to `BboxAnnotation` in `packages/samui-backend/src/samui_backend/db/models.py`
   - Update class name and `__tablename__` to `bbox_annotations`
   - Keep all existing fields: id, image_id, bbox_x, bbox_y, bbox_width, bbox_height, prompt_type, source, created_at
 
-- [ ] [P1.2] Create `PointAnnotation` model in `packages/samui-backend/src/samui_backend/db/models.py`
+- [x] [P1.2] Create `PointAnnotation` model in `packages/samui-backend/src/samui_backend/db/models.py`
   - Fields: id (UUID), image_id (FK), point_x (Integer), point_y (Integer), is_positive (Boolean), created_at (DateTime)
   - Add relationship to Image model
   - Add `POINT` to `SegmentationMode` enum in `enums.py`
 
-- [ ] [P1.3] Update `packages/samui-backend/src/samui_backend/schemas.py` for model changes
+- [x] [P1.3] Update `packages/samui-backend/src/samui_backend/schemas.py` for model changes
   - Rename `AnnotationCreate`, `AnnotationResponse` to `BboxAnnotationCreate`, `BboxAnnotationResponse`
   - Create `PointAnnotationCreate` schema: image_id, point_x, point_y, is_positive
   - Create `PointAnnotationResponse` schema: id, image_id, point_x, point_y, is_positive, created_at
 
-- [ ] [P1.4] Update `packages/samui-backend/src/samui_backend/routes/annotations.py` for BboxAnnotation
+- [x] [P1.4] Update `packages/samui-backend/src/samui_backend/routes/annotations.py` for BboxAnnotation
   - Update imports: `Annotation` → `BboxAnnotation`
   - Update schema references: `AnnotationCreate` → `BboxAnnotationCreate`, etc.
   - Update all database queries to use `BboxAnnotation`
 
-- [ ] [P1.5] Update `packages/samui-backend/src/samui_backend/services/job_processor.py` for refactored models
+- [x] [P1.5] Update `packages/samui-backend/src/samui_backend/services/job_processor.py` for refactored models
   - Update imports: `Annotation` → `BboxAnnotation`
   - Update `get_annotations_for_mode()` to query `BboxAnnotation`
 
-- [ ] [P1.6] Update `packages/samui-backend/src/samui_backend/services/coco_export.py` for BboxAnnotation
+- [x] [P1.6] Update `packages/samui-backend/src/samui_backend/services/coco_export.py` for BboxAnnotation
   - Update imports and type hints: `Annotation` → `BboxAnnotation`
 
-- [ ] [P1.7] Update `packages/samui-frontend/src/samui_frontend/api.py` for BboxAnnotation
+- [x] [P1.7] Update `packages/samui-frontend/src/samui_frontend/api.py` for BboxAnnotation
   - Update annotation function names if endpoints change
 
-- [ ] [P1.8] Update `packages/samui-frontend/src/samui_frontend/pages/annotation.py` for BboxAnnotation
+- [x] [P1.8] Update `packages/samui-frontend/src/samui_frontend/pages/annotation.py` for BboxAnnotation
   - Update any references to annotation schema names if changed
 
-- [ ] [P1.9] Update `tests/test_api_annotations.py` for BboxAnnotation
+- [x] [P1.9] Update `tests/test_api_annotations.py` for BboxAnnotation
   - Update imports and references: `Annotation` → `BboxAnnotation`
   - Ensure all existing annotation tests pass with renamed model
 
-- [ ] [P1.10] Update `tests/test_job_processor.py` for refactored models
+- [x] [P1.10] Update `tests/test_job_processor.py` for refactored models
   - Update imports: `Annotation` → `BboxAnnotation`
   - Update test fixtures and assertions
 
-- [ ] [P1.11] Run full test suite to verify no regressions: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P1.11] Run full test suite to verify no regressions: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/ --fix`
-- [ ] Code formatting: Run `uvx ruff format packages/`
-- [ ] Review: Verify all existing modes (INSIDE_BOX, FIND_ALL) work correctly after refactor
+- [x] Code quality: Run `uvx ruff check packages/ --fix`
+- [x] Code formatting: Run `uvx ruff format packages/`
+- [x] Review: Verify all existing modes (INSIDE_BOX, FIND_ALL) work correctly after refactor
 
 **Phase 1 Complete:** Data model cleanly separated into BboxAnnotation and PointAnnotation tables. All existing tests pass, ready for point mode implementation.
 

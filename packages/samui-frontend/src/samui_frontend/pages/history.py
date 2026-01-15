@@ -83,9 +83,7 @@ def _history_label(result: dict) -> str | None:
 
     text_prompt = result.get("text_prompt_used")
     if text_prompt:
-        prompt_display = (
-            f'"{text_prompt[:30]}..."' if len(text_prompt) > 30 else f'"{text_prompt}"'
-        )
+        prompt_display = f'"{text_prompt[:30]}..."' if len(text_prompt) > 30 else f'"{text_prompt}"'
         parts.append(f"Prompt: {prompt_display}")
 
     return " | ".join(parts) if parts else None

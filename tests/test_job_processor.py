@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from samui_backend.db.models import Annotation, Image, ProcessingJob, ProcessingResult
+from samui_backend.db.models import BboxAnnotation, Image, ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, PromptType, SegmentationMode
 from samui_backend.services.job_processor import (
     cleanup_stale_jobs,
@@ -30,9 +30,9 @@ def create_test_annotation(
     db: Session,
     image_id: uuid.UUID,
     prompt_type: PromptType = PromptType.SEGMENT,
-) -> Annotation:
+) -> BboxAnnotation:
     """Create a test annotation in the database."""
-    annotation = Annotation(
+    annotation = BboxAnnotation(
         image_id=image_id,
         bbox_x=10,
         bbox_y=10,

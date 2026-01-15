@@ -16,7 +16,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_background_db
-from samui_backend.db.models import Annotation, Image, ProcessingJob, ProcessingResult
+from samui_backend.db.models import BboxAnnotation, Image, ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, PromptType, SegmentationMode
 from samui_backend.services.coco_export import generate_coco_json
 from samui_backend.services.sam3_inference import SAM3Service
@@ -38,24 +38,27 @@ def get_latest_result(db: Session, image_id: uuid.UUID, mode: SegmentationMode) 
     )
 
 
-def get_annotations_for_mode(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -> list[Annotation]:
+def get_annotations_for_mode(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -> list[BboxAnnotation]:
     """Get annotations relevant to the given segmentation mode."""
     if mode == SegmentationMode.INSIDE_BOX:
         return (
-            db.query(Annotation)
-            .filter(Annotation.image_id == image_id, Annotation.prompt_type == PromptType.SEGMENT)
+            db.query(BboxAnnotation)
+            .filter(BboxAnnotation.image_id == image_id, BboxAnnotation.prompt_type == PromptType.SEGMENT)
             .all()
         )
-    else:
+    elif mode == SegmentationMode.FIND_ALL:
         # Find-all mode uses exemplar annotations
         return (
-            db.query(Annotation)
+            db.query(BboxAnnotation)
             .filter(
-                Annotation.image_id == image_id,
-                Annotation.prompt_type.in_([PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]),
+                BboxAnnotation.image_id == image_id,
+                BboxAnnotation.prompt_type.in_([PromptType.POSITIVE_EXEMPLAR, PromptType.NEGATIVE_EXEMPLAR]),
             )
             .all()
         )
+    else:
+        # POINT mode doesn't use BboxAnnotation
+        return []
 
 
 def needs_processing(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -> bool:

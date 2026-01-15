@@ -6,18 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
-from samui_backend.db.models import Annotation, Image
+from samui_backend.db.models import BboxAnnotation, Image
 from samui_backend.enums import PromptType
-from samui_backend.schemas import AnnotationCreate, AnnotationList, AnnotationResponse
+from samui_backend.schemas import BboxAnnotationCreate, BboxAnnotationList, BboxAnnotationResponse
 
 router = APIRouter(prefix="/annotations", tags=["annotations"])
 
 
-@router.post("", response_model=AnnotationResponse, status_code=201)
+@router.post("", response_model=BboxAnnotationResponse, status_code=201)
 def create_annotation(
-    annotation: AnnotationCreate,
+    annotation: BboxAnnotationCreate,
     db: Session = Depends(get_db),
-) -> Annotation:
+) -> BboxAnnotation:
     """Create a bounding box annotation for an image."""
     # Verify image exists
     image = db.query(Image).filter(Image.id == annotation.image_id).first()
@@ -38,7 +38,7 @@ def create_annotation(
         raise HTTPException(status_code=400, detail="Bounding box exceeds image height")
 
     # Create annotation
-    db_annotation = Annotation(
+    db_annotation = BboxAnnotation(
         image_id=annotation.image_id,
         bbox_x=annotation.bbox_x,
         bbox_y=annotation.bbox_y,
@@ -53,7 +53,7 @@ def create_annotation(
     return db_annotation
 
 
-@router.get("/{image_id}", response_model=AnnotationList)
+@router.get("/{image_id}", response_model=BboxAnnotationList)
 def get_annotations(
     image_id: uuid.UUID,
     prompt_type: PromptType | None = None,
@@ -65,11 +65,11 @@ def get_annotations(
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    query = db.query(Annotation).filter(Annotation.image_id == image_id)
+    query = db.query(BboxAnnotation).filter(BboxAnnotation.image_id == image_id)
     if prompt_type is not None:
-        query = query.filter(Annotation.prompt_type == prompt_type)
+        query = query.filter(BboxAnnotation.prompt_type == prompt_type)
 
-    annotations = query.order_by(Annotation.created_at.asc()).all()
+    annotations = query.order_by(BboxAnnotation.created_at.asc()).all()
     return {"annotations": annotations, "total": len(annotations)}
 
 
@@ -79,7 +79,7 @@ def delete_annotation(
     db: Session = Depends(get_db),
 ) -> None:
     """Delete an annotation."""
-    annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
+    annotation = db.query(BboxAnnotation).filter(BboxAnnotation.id == annotation_id).first()
     if not annotation:
         raise HTTPException(status_code=404, detail="Annotation not found")
 

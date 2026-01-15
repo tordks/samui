@@ -245,7 +245,6 @@ Tests use in-memory SQLite and mocked storage (existing fixtures).
 
 ### Risk Mitigation
 
-- **Data migration risk:** Phase 1 includes careful migration of existing Annotation data to BboxAnnotation
 - **Regression risk:** Run full test suite after Phase 1 to ensure existing modes work
 - **SAM3 API compatibility:** Verify point_coords/point_labels format matches SAM3 expectations early
 

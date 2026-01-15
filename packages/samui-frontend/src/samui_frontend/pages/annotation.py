@@ -271,9 +271,7 @@ def _render_text_prompt_sidebar(current_image: dict) -> PromptType:
     )
 
     # Map selection back to enum
-    new_exemplar_type = (
-        PromptType.POSITIVE_EXEMPLAR if selected == "+ Positive" else PromptType.NEGATIVE_EXEMPLAR
-    )
+    new_exemplar_type = PromptType.POSITIVE_EXEMPLAR if selected == "+ Positive" else PromptType.NEGATIVE_EXEMPLAR
 
     # Update session state if changed
     if new_exemplar_type != st.session_state.exemplar_type:
