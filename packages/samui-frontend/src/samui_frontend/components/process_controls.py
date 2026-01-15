@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from samui_frontend.api import create_job, fetch_annotations, fetch_job
+from samui_frontend.api import create_job, fetch_annotations, fetch_job, fetch_jobs
 from samui_frontend.models import SegmentationMode
 
 
@@ -26,6 +26,17 @@ def get_images_ready_for_mode(images: list[dict], mode: SegmentationMode) -> lis
     return ready
 
 
+def _find_running_job() -> str | None:
+    """Find a running job from the backend and update session state."""
+    jobs = fetch_jobs()
+    running_jobs = [j for j in jobs if j.get("is_running")]
+    if running_jobs:
+        job_id = running_jobs[0]["id"]
+        st.session_state.current_job_id = job_id
+        return job_id
+    return None
+
+
 @st.fragment(run_every=1)
 def render_processing_status() -> None:
     """Fragment that polls processing status with auto-refresh.
@@ -34,6 +45,10 @@ def render_processing_status() -> None:
     Detailed job status is available on the Jobs page.
     """
     job_id = st.session_state.get("current_job_id")
+
+    # If no current job in session, check backend for running jobs (e.g., after page refresh)
+    if not job_id:
+        job_id = _find_running_job()
 
     if job_id:
         job = fetch_job(job_id)
