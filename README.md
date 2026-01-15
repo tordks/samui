@@ -75,16 +75,19 @@ samui/
 │   │       ├── main.py            # FastAPI app entry point
 │   │       ├── config.py          # Settings from env vars
 │   │       ├── schemas.py         # Pydantic models
+│   │       ├── enums.py           # Shared enums (JobStatus, PromptType, etc.)
 │   │       ├── db/
 │   │       │   ├── database.py    # SQLAlchemy engine
-│   │       │   └── models.py      # Image, Annotation, ProcessingResult
+│   │       │   └── models.py      # Image, Annotation, ProcessingJob, ProcessingResult
 │   │       ├── routes/
 │   │       │   ├── images.py      # Image CRUD endpoints
 │   │       │   ├── annotations.py # Annotation CRUD endpoints
-│   │       │   └── processing.py  # SAM3 inference endpoints
+│   │       │   ├── processing.py  # SAM3 inference endpoints
+│   │       │   └── jobs.py        # Job queue management endpoints
 │   │       └── services/
 │   │           ├── storage.py     # Azure Blob Storage client
 │   │           ├── sam3_inference.py  # SAM3 model wrapper
+│   │           ├── job_processor.py   # Background job processing
 │   │           └── coco_export.py # COCO JSON generation
 │   └── samui-frontend/            # Streamlit (isolated package)
 │       ├── pyproject.toml
@@ -92,18 +95,26 @@ samui/
 │       └── src/samui_frontend/
 │           ├── app.py             # Streamlit entry point
 │           ├── config.py          # API URL setting
+│           ├── api.py             # Backend API client
+│           ├── models.py          # Frontend data models
 │           ├── pages/
 │           │   ├── upload.py      # Upload page
 │           │   ├── annotation.py  # Annotation page
-│           │   └── processing.py  # Processing page
+│           │   ├── processing.py  # Processing page
+│           │   ├── jobs.py        # Job queue status page
+│           │   └── history.py     # Processing history page
 │           └── components/
 │               ├── image_gallery.py
-│               └── bbox_annotator.py  # Bounding box drawing
+│               ├── bbox_annotator.py    # Bounding box drawing
+│               ├── mode_toggle.py       # Segmentation mode toggle
+│               └── arrow_navigator.py   # Image navigation arrows
 └── tests/
     ├── conftest.py                # Test fixtures
     ├── test_api_images.py         # Image API tests
     ├── test_api_annotations.py    # Annotation API tests
-    ├── test_api_processing.py     # Processing API tests (mode-aware)
+    ├── test_api_processing.py     # Processing API tests
+    ├── test_api_jobs.py           # Job queue API tests
+    ├── test_job_processor.py      # Job processor service tests
     ├── test_sam3_inference.py     # SAM3 service tests
     └── test_coco_export.py        # COCO export tests
 ```
@@ -137,6 +148,20 @@ samui/
 | GET | `/process/status` | Get processing progress |
 | GET | `/process/mask/{image_id}` | Get mask image, optionally filtered by `?mode=` |
 | GET | `/process/export/{image_id}` | Download COCO JSON, optionally filtered by `?mode=` |
+
+### Jobs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/jobs` | Create a processing job (queued for background execution) |
+| GET | `/jobs` | List all jobs (newest first) |
+| GET | `/jobs/{job_id}` | Get job details and progress |
+
+### Results
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/results/{result_id}/mask` | Get mask PNG for a specific processing result |
 
 ### System
 
@@ -229,9 +254,6 @@ uv add <package>
 
 ## TODO
 
-- Fix state: updated bbox does not update processed status
-- Progress bar update should not freeze UI
-- Make os.path -> pathlib throughout codebase
 - Make sure to use dataclasses instead of dicts where appropriate
 - GPU hardware detection and conditionals for CUDA/CPU
 - Replace rectangle drawing component to be able to see live-drawing of bboxes

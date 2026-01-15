@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -71,7 +71,7 @@ class SAM3Service:
         from sam3.model.sam3_image_processor import Sam3Processor
 
         # Get BPE path for text encoder (inside sam3 package)
-        bpe_path = os.path.join(os.path.dirname(sam3.__file__), "assets", "bpe_simple_vocab_16e6.txt.gz")
+        bpe_path = Path(sam3.__file__).parent / "assets" / "bpe_simple_vocab_16e6.txt.gz"
 
         # Build model with instance interactivity for predict_inst
         self._model = build_sam3_image_model(bpe_path=bpe_path, enable_inst_interactivity=True)
