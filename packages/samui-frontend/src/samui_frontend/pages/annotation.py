@@ -214,64 +214,70 @@ def _render_instructions(mode: SegmentationMode) -> None:
         st.caption("Negative (-): exclude similar objects.")
 
 
-def _render_find_all_controls(current_image: dict) -> PromptType:
-    """Render text prompt input and exemplar type toggle for find-all mode.
+def _render_text_prompt_sidebar(current_image: dict) -> PromptType:
+    """Render text prompt and exemplar type controls in sidebar for find-all mode.
 
     Returns the selected exemplar type for creating new annotations.
     """
-    # Display current text prompt with delete button
-    current_prompt = current_image.get("text_prompt") or ""
+    st.subheader("Text Prompt")
+
+    text_key = f"text_prompt_{current_image['id']}"
+
+    # Empty text input for entering new/replacement prompt
+    new_prompt = st.text_input(
+        "Describe what to find",
+        value="",
+        placeholder="e.g., 'red apples'",
+        key=text_key,
+        label_visibility="collapsed",
+    )
+
+    # Save when user enters text (on Enter press)
+    if new_prompt:
+        if update_image_text_prompt(current_image["id"], new_prompt):
+            # Clear the input field before rerun
+            del st.session_state[text_key]
+            st.rerun()
+        else:
+            st.error("Failed to save")
+
+    # Display current prompt with X button (like bbox annotations)
+    current_prompt = current_image.get("text_prompt", "") or ""
     if current_prompt:
-        prompt_col, delete_col = st.columns([4, 1])
-        with prompt_col:
-            st.info(f"**Text prompt:** {current_prompt}")
-        with delete_col:
-            if st.button("X", key=f"clear_prompt_{current_image['id']}", help="Clear text prompt"):
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            st.caption(f'"{current_prompt}"')
+        with col2:
+            if st.button("X", key=f"clear_prompt_{current_image['id']}"):
                 if update_image_text_prompt(current_image["id"], None):
                     st.rerun()
                 else:
                     st.error("Failed to clear")
 
-    col1, col2 = st.columns([2, 1])
+    st.divider()
 
-    with col1:
-        current_prompt = current_image.get("text_prompt", "") or ""
-        text_key = f"text_prompt_{current_image['id']}"
+    # Exemplar type toggle
+    st.subheader("Exemplar Type")
+    exemplar_options = ["+ Positive", "- Negative"]
+    current_idx = 0 if st.session_state.exemplar_type == PromptType.POSITIVE_EXEMPLAR else 1
 
-        new_prompt = st.text_input(
-            "Text Prompt",
-            value=current_prompt,
-            placeholder="e.g., 'red apples' or 'person wearing blue'",
-            key=text_key,
-            help="Describe what you want to find in the image",
-        )
+    selected = st.radio(
+        "Exemplar Type",
+        options=exemplar_options,
+        index=current_idx,
+        horizontal=True,
+        key="exemplar_type_radio",
+        label_visibility="collapsed",
+    )
 
-        # Save if changed
-        if new_prompt != current_prompt:
-            if update_image_text_prompt(current_image["id"], new_prompt):
-                st.rerun()
-            else:
-                st.error("Failed to save text prompt")
+    # Map selection back to enum
+    new_exemplar_type = (
+        PromptType.POSITIVE_EXEMPLAR if selected == "+ Positive" else PromptType.NEGATIVE_EXEMPLAR
+    )
 
-    with col2:
-        exemplar_options = ["+ Positive", "- Negative"]
-        current_idx = 0 if st.session_state.exemplar_type == PromptType.POSITIVE_EXEMPLAR else 1
-
-        selected = st.radio(
-            "Exemplar Type",
-            options=exemplar_options,
-            index=current_idx,
-            horizontal=True,
-            key="exemplar_type_radio",
-            help="Positive: find similar. Negative: exclude similar.",
-        )
-
-        # Map selection back to enum
-        new_exemplar_type = PromptType.POSITIVE_EXEMPLAR if selected == "+ Positive" else PromptType.NEGATIVE_EXEMPLAR
-
-        # Update session state if changed
-        if new_exemplar_type != st.session_state.exemplar_type:
-            st.session_state.exemplar_type = new_exemplar_type
+    # Update session state if changed
+    if new_exemplar_type != st.session_state.exemplar_type:
+        st.session_state.exemplar_type = new_exemplar_type
 
     return st.session_state.exemplar_type
 
@@ -308,19 +314,18 @@ def render() -> None:
     current_image = images[st.session_state.selected_image_index]
     annotations = fetch_annotations(current_image["id"], current_mode)
 
-    # Show find-all controls (text prompt + exemplar type toggle)
-    exemplar_type = PromptType.SEGMENT  # Default for inside_box mode
-    if current_mode == SegmentationMode.FIND_ALL:
-        exemplar_type = _render_find_all_controls(current_image)
-
     main_col, sidebar_col = st.columns([3, 1])
+
+    # Get exemplar type from sidebar (for find-all mode)
+    exemplar_type = PromptType.SEGMENT  # Default for inside_box mode
+    with sidebar_col:
+        if current_mode == SegmentationMode.FIND_ALL:
+            exemplar_type = _render_text_prompt_sidebar(current_image)
+        _render_annotation_list(annotations, current_mode)
+        _render_instructions(current_mode)
 
     with main_col:
         _render_navigation_controls(images, key_suffix="top")
         _render_image_annotator(current_image, annotations, current_mode, exemplar_type)
         _render_navigation_controls(images, key_suffix="bottom")
         _render_thumbnail_gallery(images)
-
-    with sidebar_col:
-        _render_annotation_list(annotations, current_mode)
-        _render_instructions(current_mode)
