@@ -86,13 +86,21 @@ def _render_image_annotator(
             st.error("Failed to create annotation")
 
 
-def _render_navigation_controls(images: list[dict]) -> None:
-    """Render previous/next navigation buttons."""
-    st.divider()
+def _render_navigation_controls(images: list[dict], key_suffix: str = "") -> None:
+    """Render previous/next navigation buttons.
+
+    Args:
+        images: List of image dicts.
+        key_suffix: Suffix for widget keys to allow multiple instances.
+    """
     nav_cols = st.columns([1, 3, 1])
 
     with nav_cols[0]:
-        if st.button("Previous", disabled=st.session_state.selected_image_index == 0):
+        if st.button(
+            "Previous",
+            key=f"prev_{key_suffix}" if key_suffix else None,
+            disabled=st.session_state.selected_image_index == 0,
+        ):
             st.session_state.selected_image_index -= 1
             st.rerun()
 
@@ -100,7 +108,11 @@ def _render_navigation_controls(images: list[dict]) -> None:
         st.caption(f"Image {st.session_state.selected_image_index + 1} of {len(images)}")
 
     with nav_cols[2]:
-        if st.button("Next", disabled=st.session_state.selected_image_index >= len(images) - 1):
+        if st.button(
+            "Next",
+            key=f"next_{key_suffix}" if key_suffix else None,
+            disabled=st.session_state.selected_image_index >= len(images) - 1,
+        ):
             st.session_state.selected_image_index += 1
             st.rerun()
 
@@ -304,8 +316,9 @@ def render() -> None:
     main_col, sidebar_col = st.columns([3, 1])
 
     with main_col:
+        _render_navigation_controls(images, key_suffix="top")
         _render_image_annotator(current_image, annotations, current_mode, exemplar_type)
-        _render_navigation_controls(images)
+        _render_navigation_controls(images, key_suffix="bottom")
         _render_thumbnail_gallery(images)
 
     with sidebar_col:
