@@ -224,7 +224,7 @@ def create_job(image_ids: list[str], mode: SegmentationMode, force_all: bool = F
         force_all: If True, process all images. If False, only process changed images.
 
     Returns:
-        The job response dict on success, None on failure.
+        The job response dict on success, dict with "error" key on API error, None on network error.
     """
     try:
         response = httpx.post(
@@ -238,6 +238,13 @@ def create_job(image_ids: list[str], mode: SegmentationMode, force_all: bool = F
         )
         response.raise_for_status()
         return response.json()
+    except httpx.HTTPStatusError as e:
+        # Extract error detail from API response
+        try:
+            detail = e.response.json().get("detail", "Unknown error")
+        except Exception:
+            detail = str(e)
+        return {"error": detail}
     except httpx.HTTPError:
         return None
 

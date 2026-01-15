@@ -78,10 +78,12 @@ def render_process_buttons(ready_images: list[dict], mode: SegmentationMode) -> 
         ):
             image_ids = [img["id"] for img in ready_images]
             result = create_job(image_ids, mode, force_all=False)
-            if result:
+            if result and result.get("id"):
                 st.session_state.current_job_id = result.get("id")
                 st.session_state.last_processed_count = 0
                 st.rerun()
+            elif result and result.get("error"):
+                st.error(result["error"])
             else:
                 st.error("Failed to create processing job")
 
@@ -94,9 +96,11 @@ def render_process_buttons(ready_images: list[dict], mode: SegmentationMode) -> 
         ):
             image_ids = [img["id"] for img in ready_images]
             result = create_job(image_ids, mode, force_all=True)
-            if result:
+            if result and result.get("id"):
                 st.session_state.current_job_id = result.get("id")
                 st.session_state.last_processed_count = 0
                 st.rerun()
+            elif result and result.get("error"):
+                st.error(result["error"])
             else:
                 st.error("Failed to create processing job")
