@@ -171,6 +171,7 @@ class ProcessingHistoryResponse(BaseModel):
 
     id: uuid.UUID
     job_id: uuid.UUID
+    image_id: uuid.UUID
     mode: SegmentationMode
     processed_at: datetime
     text_prompt_used: str | None = None

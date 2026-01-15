@@ -296,6 +296,27 @@ def fetch_image_history(image_id: str, mode: SegmentationMode) -> list[dict]:
         return []
 
 
+def fetch_all_history(mode: SegmentationMode) -> list[dict]:
+    """Fetch all processing history across all images.
+
+    Args:
+        mode: The segmentation mode to filter by.
+
+    Returns:
+        List of processing result dicts, newest first.
+    """
+    try:
+        response = httpx.get(
+            f"{API_URL}/images/history",
+            params={"mode": mode.value},
+            timeout=API_TIMEOUT_READ,
+        )
+        response.raise_for_status()
+        return response.json()
+    except httpx.HTTPError:
+        return []
+
+
 def fetch_result_mask(result_id: str) -> bytes | None:
     """Fetch mask PNG for a specific processing result.
 

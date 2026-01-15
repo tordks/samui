@@ -64,6 +64,29 @@ def list_images(db: Session = Depends(get_db)) -> dict:
     return {"images": images, "total": len(images)}
 
 
+@router.get("/history", response_model=list[ProcessingHistoryResponse])
+def get_all_history(
+    mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
+    db: Session = Depends(get_db),
+) -> list[ProcessingResult]:
+    """Get all processing history across all images.
+
+    Args:
+        mode: Segmentation mode to filter by.
+        db: Database session.
+
+    Returns:
+        List of ProcessingHistoryResponse, newest first.
+    """
+    results = (
+        db.query(ProcessingResult)
+        .filter(ProcessingResult.mode == mode)
+        .order_by(desc(ProcessingResult.processed_at))
+        .all()
+    )
+    return results
+
+
 @router.get("/{image_id}", response_model=ImageResponse)
 def get_image(image_id: uuid.UUID, db: Session = Depends(get_db)) -> Image:
     """Get a single image by ID."""
