@@ -138,18 +138,18 @@ Step-by-step implementation guide for point-based segmentation mode.
 
 **Tasks:**
 
-- [ ] [P3.1] Add point annotation API functions to `packages/samui-frontend/src/samui_frontend/api.py`
+- [x] [P3.1] Add point annotation API functions to `packages/samui-frontend/src/samui_frontend/api.py`
   - `create_point_annotation(image_id, x, y, is_positive)` → POST /point-annotations
   - `fetch_point_annotations(image_id)` → GET /point-annotations/{image_id}
   - `delete_point_annotation(annotation_id)` → DELETE /point-annotations/{annotation_id}
 
-- [ ] [P3.2] Create `packages/samui-frontend/src/samui_frontend/components/point_annotator.py`
+- [x] [P3.2] Create `packages/samui-frontend/src/samui_frontend/components/point_annotator.py`
   - Use `streamlit_image_coordinates` for click detection
   - Draw existing points as small filled circles on image (green=positive, red=negative)
   - Return click coordinates when user clicks
   - Handle point hit detection for delete mode (check if click is near existing point)
 
-- [ ] [P3.3] Create `packages/samui-frontend/src/samui_frontend/pages/point_annotation.py`
+- [x] [P3.3] Create `packages/samui-frontend/src/samui_frontend/pages/point_annotation.py`
   - Page layout matching annotation page pattern:
     - Navigation controls (prev/next) above image
     - Main image area with point annotator
@@ -162,21 +162,21 @@ Step-by-step implementation guide for point-based segmentation mode.
     - Point count display
   - Image thumbnail gallery below main image
 
-- [ ] [P3.4] Implement point creation flow in `point_annotation.py`
+- [x] [P3.4] Implement point creation flow in `point_annotation.py`
   - On click in add mode: create point annotation via API
   - Refresh point list after creation
   - Display updated points on image
 
-- [ ] [P3.5] Implement point deletion flow in `point_annotation.py`
+- [x] [P3.5] Implement point deletion flow in `point_annotation.py`
   - On click in delete mode: find nearest point within threshold
   - Delete point annotation via API if found
   - Refresh point list after deletion
 
-- [ ] [P3.6] Add Point Annotation page to navigation in `packages/samui-frontend/src/samui_frontend/app.py`
+- [x] [P3.6] Add Point Annotation page to navigation in `packages/samui-frontend/src/samui_frontend/app.py`
   - Add page to st.navigation() list
   - Add POINT mode to session state initialization
 
-- [ ] [P3.7] Manual test: Verify point placement and deletion works correctly
+- [x] [P3.7] Manual test: Verify point placement and deletion works correctly
   - Place positive points (green circles appear)
   - Place negative points (red circles appear)
   - Switch to delete mode and remove points
@@ -184,9 +184,9 @@ Step-by-step implementation guide for point-based segmentation mode.
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/ --fix`
-- [ ] Code formatting: Run `uvx ruff format packages/`
-- [ ] Review: Verify point annotation UX matches mockup layout
+- [x] Code quality: Run `uvx ruff check packages/ --fix`
+- [x] Code formatting: Run `uvx ruff format packages/`
+- [x] Review: Verify point annotation UX matches mockup layout
 
 **Phase 3 Complete:** Point Annotation page functional with interactive point placement. Users can add/remove positive and negative points. Ready for processing integration.
 
