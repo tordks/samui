@@ -256,3 +256,22 @@ Each phase ends with validation:
 - **Tests:** Run `uv run pytest ../../tests/ -v` from backend package
 
 These checkpoints ensure code quality before proceeding to next phase.
+
+---
+
+## Changelog
+
+### Phase 2 Amendment (during implementation)
+
+**Refactor `process_single_image` into mode-specific helpers**
+
+The original plan added POINT mode as another branch in the monolithic `process_single_image` function. During implementation, we identified this would make the function harder to maintain with three modes.
+
+**Decision:** Extract mode-specific processing into helper functions:
+- `_process_inside_box(db, storage, sam3, image, result)` - bbox inference
+- `_process_find_all(db, storage, sam3, image, result)` - find-all inference
+- `_process_point(db, storage, sam3, image, result)` - point inference
+
+Keep `process_single_image` as orchestrator handling shared setup (load image, create result) and teardown (commit).
+
+**Rationale:** Better separation of concerns, each mode's logic is isolated and testable, easier to add future modes.

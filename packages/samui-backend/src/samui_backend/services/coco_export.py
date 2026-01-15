@@ -55,7 +55,28 @@ def _compute_bbox_area(mask: NDArray[np.uint8]) -> int:
     return int(np.sum(mask > 0))
 
 
-def generate_coco_json(
+def _compute_bbox_from_mask(mask: NDArray[np.uint8]) -> tuple[int, int, int, int]:
+    """Compute bounding box from a binary mask.
+
+    Args:
+        mask: Binary mask array of shape (height, width).
+
+    Returns:
+        Bounding box as (x, y, width, height).
+    """
+    rows = np.any(mask > 0, axis=1)
+    cols = np.any(mask > 0, axis=0)
+
+    if not np.any(rows) or not np.any(cols):
+        return (0, 0, 0, 0)
+
+    y_min, y_max = np.where(rows)[0][[0, -1]]
+    x_min, x_max = np.where(cols)[0][[0, -1]]
+
+    return (int(x_min), int(y_min), int(x_max - x_min + 1), int(y_max - y_min + 1))
+
+
+def generate_coco_json(  # noqa: PLR0913
     image_id: uuid.UUID,
     filename: str,
     width: int,
@@ -63,6 +84,7 @@ def generate_coco_json(
     bboxes: list[tuple[int, int, int, int]],
     masks: NDArray[np.uint8],
     category_name: str = "object",
+    points: list[tuple[int, int, bool]] | None = None,
 ) -> dict[str, Any]:
     """Generate COCO JSON for a single image with its annotations.
 
@@ -72,8 +94,11 @@ def generate_coco_json(
         width: Image width in pixels.
         height: Image height in pixels.
         bboxes: List of bounding boxes in (x, y, width, height) format.
+            If empty but masks provided, bboxes are computed from masks.
         masks: Array of binary masks with shape (num_annotations, height, width).
         category_name: Name for the segmentation category.
+        points: Optional list of (x, y, is_positive) tuples for point annotations.
+            Stored in annotation metadata when provided.
 
     Returns:
         COCO-format dict with images, annotations, and categories arrays.
@@ -93,6 +118,10 @@ def generate_coco_json(
         "height": height,
     })
 
+    # If bboxes not provided, compute from masks
+    if not bboxes and masks.size > 0:
+        bboxes = [_compute_bbox_from_mask(mask) for mask in masks]
+
     # Add annotations
     for idx, (bbox, mask) in enumerate(zip(bboxes, masks, strict=True)):
         x, y, w, h = bbox
@@ -101,7 +130,7 @@ def generate_coco_json(
         segmentation = _mask_to_rle(mask)
         area = _compute_bbox_area(mask)
 
-        annotation = {
+        annotation: dict[str, Any] = {
             "id": idx + 1,
             "image_id": str(image_id),
             "category_id": 1,
@@ -110,6 +139,11 @@ def generate_coco_json(
             "area": area,
             "iscrowd": 0,
         }
+
+        # Add point prompts metadata if provided
+        if points:
+            annotation["point_prompts"] = [{"x": px, "y": py, "is_positive": is_pos} for px, py, is_pos in points]
+
         coco["annotations"].append(annotation)
 
     return coco

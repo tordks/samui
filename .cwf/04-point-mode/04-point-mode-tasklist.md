@@ -72,56 +72,59 @@ Step-by-step implementation guide for point-based segmentation mode.
 
 **Tasks:**
 
-- [ ] [P2.1] Create point annotation routes in `packages/samui-backend/src/samui_backend/routes/annotations.py`
+- [x] [P2.1] Create point annotation routes in `packages/samui-backend/src/samui_backend/routes/annotations.py`
   - Add `POST /point-annotations` endpoint to create point annotation
   - Add `GET /point-annotations/{image_id}` endpoint to list points for image
   - Add `DELETE /point-annotations/{annotation_id}` endpoint to delete point
   - Include validation: coordinates within image bounds, is_positive boolean
 
-- [ ] [P2.2] Add `process_image_points()` method to `packages/samui-backend/src/samui_backend/services/sam3_inference.py`
+- [x] [P2.2] Add `process_image_points()` method to `packages/samui-backend/src/samui_backend/services/sam3_inference.py`
   - Accept image, points list (x, y tuples), labels list (1=positive, 0=negative)
   - Convert to numpy arrays with correct shapes
   - Call `predict_inst()` with point_coords and point_labels
   - Return single combined mask
 
-- [ ] [P2.3] Extend `packages/samui-backend/src/samui_backend/services/job_processor.py` for POINT mode
-  - Add POINT case to `get_annotations_for_mode()` to query PointAnnotation
+- [x] [P2.3] Refactor `process_single_image()` into mode-specific helpers in `job_processor.py`
+  - Add `get_point_annotations_for_image()` helper function
   - Update `needs_processing()` to check PointAnnotation for POINT mode
-  - Add POINT mode handling in `process_single_image()`:
+  - Extract `_process_inside_box()` helper from existing INSIDE_BOX logic
+  - Extract `_process_find_all()` helper from existing FIND_ALL logic
+  - Create `_process_point()` helper for POINT mode:
     - Fetch point annotations
     - Extract coordinates and labels
     - Call `sam3.process_image_points()`
     - Save mask and COCO JSON
+  - Refactor `process_single_image()` to dispatch to helpers
 
-- [ ] [P2.4] Update `packages/samui-backend/src/samui_backend/services/coco_export.py` to support point annotations
+- [x] [P2.4] Update `packages/samui-backend/src/samui_backend/services/coco_export.py` to support point annotations
   - Add function to convert point annotations to COCO format
   - Include point coordinates in annotation metadata
 
-- [ ] [P2.5] Create `tests/test_api_point_annotations.py` with point annotation API tests
+- [x] [P2.5] Create `tests/test_api_point_annotations.py` with point annotation API tests
   - Test create point annotation (valid coordinates)
   - Test create point annotation (invalid: out of bounds)
   - Test list points for image
   - Test delete point annotation
   - Test points filtering by image_id
 
-- [ ] [P2.6] Add point inference tests to `tests/test_sam3_inference.py`
+- [x] [P2.6] Add point inference tests to `tests/test_sam3_inference.py`
   - Test `process_image_points()` with mocked model
   - Test with positive points only
   - Test with mixed positive/negative points
   - Verify correct numpy array shapes passed to model
 
-- [ ] [P2.7] Add POINT mode tests to `tests/test_job_processor.py`
+- [x] [P2.7] Add POINT mode tests to `tests/test_job_processor.py`
   - Test `needs_processing()` for POINT mode
-  - Test `get_annotations_for_mode()` returns PointAnnotations
-  - Test `process_single_image()` for POINT mode
+  - Test `get_point_annotations_for_image()` returns PointAnnotations
+  - Test `_process_point()` helper function
 
-- [ ] [P2.8] Run test suite: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P2.8] Run test suite: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/ --fix`
-- [ ] Code formatting: Run `uvx ruff format packages/`
-- [ ] Review: Verify point annotation API works via Swagger UI at /docs
+- [x] Code quality: Run `uvx ruff check packages/ --fix`
+- [x] Code formatting: Run `uvx ruff format packages/`
+- [x] Review: Verify point annotation API works via Swagger UI at /docs
 
 **Phase 2 Complete:** Backend fully supports point annotations with CRUD API and SAM3 point-based inference. All tests pass, ready for frontend implementation.
 

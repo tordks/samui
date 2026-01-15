@@ -123,6 +123,60 @@ class SAM3Service:
         logger.info(f"Generated {len(masks)} masks for {len(bboxes)} bboxes")
         return masks
 
+    def process_image_points(
+        self, image: Image.Image, points: list[tuple[int, int]], labels: list[int]
+    ) -> NDArray[np.uint8]:
+        """Process an image with point prompts to generate a segmentation mask.
+
+        Args:
+            image: PIL Image to segment.
+            points: List of (x, y) point coordinates in pixels.
+            labels: List of labels (1=positive/foreground, 0=negative/background).
+
+        Returns:
+            Single binary mask with shape (1, height, width).
+
+        Raises:
+            RuntimeError: If model is not loaded.
+            ValueError: If points and labels have different lengths or no points provided.
+        """
+        if self._model is None or self._processor is None:
+            raise RuntimeError("SAM3 model not loaded. Call load_model() first.")
+
+        if not points:
+            raise ValueError("No point annotations provided.")
+
+        if len(points) != len(labels):
+            raise ValueError("Points and labels must have the same length.")
+
+        # Set image in processor
+        inference_state = self._processor.set_image(image)
+
+        # Convert to numpy arrays
+        point_coords = np.array(points, dtype=np.float32)  # shape: (N, 2)
+        point_labels = np.array(labels, dtype=np.int32)  # shape: (N,)
+
+        # Run inference with point prompts
+        with torch.inference_mode():
+            masks, scores, _ = self._model.predict_inst(
+                inference_state,
+                point_coords=point_coords,
+                point_labels=point_labels,
+                box=None,
+                multimask_output=False,
+            )
+
+        # masks shape varies: (num_masks, H, W) or (1, num_masks, H, W)
+        # Take first mask if 4D, then convert to binary uint8
+        if masks.ndim == 4:
+            masks = masks[0]  # (num_masks, H, W)
+        if masks.ndim == 3:
+            masks = masks[0:1]  # Keep as (1, H, W)
+        masks = (masks > 0).astype(np.uint8) * 255
+
+        logger.info(f"Generated mask from {len(points)} points")
+        return masks
+
     def _create_transforms(self) -> ComposeAPI:
         """Create transform pipeline for batched API inference.
 

@@ -16,7 +16,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_background_db
-from samui_backend.db.models import BboxAnnotation, Image, ProcessingJob, ProcessingResult
+from samui_backend.db.models import BboxAnnotation, Image, PointAnnotation, ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, PromptType, SegmentationMode
 from samui_backend.services.coco_export import generate_coco_json
 from samui_backend.services.sam3_inference import SAM3Service
@@ -39,7 +39,7 @@ def get_latest_result(db: Session, image_id: uuid.UUID, mode: SegmentationMode) 
 
 
 def get_annotations_for_mode(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -> list[BboxAnnotation]:
-    """Get annotations relevant to the given segmentation mode."""
+    """Get bbox annotations relevant to the given segmentation mode."""
     if mode == SegmentationMode.INSIDE_BOX:
         return (
             db.query(BboxAnnotation)
@@ -61,6 +61,11 @@ def get_annotations_for_mode(db: Session, image_id: uuid.UUID, mode: Segmentatio
         return []
 
 
+def get_point_annotations_for_image(db: Session, image_id: uuid.UUID) -> list[PointAnnotation]:
+    """Get point annotations for an image (used in POINT mode)."""
+    return db.query(PointAnnotation).filter(PointAnnotation.image_id == image_id).all()
+
+
 def needs_processing(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -> bool:
     """Derive processing need by comparing current annotations vs last result.
 
@@ -73,8 +78,13 @@ def needs_processing(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -
     if not image:
         return False
 
-    annotations = get_annotations_for_mode(db, image_id, mode)
-    current_ids = {str(a.id) for a in annotations}
+    # Get annotation IDs based on mode
+    if mode == SegmentationMode.POINT:
+        point_annotations = get_point_annotations_for_image(db, image_id)
+        current_ids = {str(a.id) for a in point_annotations}
+    else:
+        annotations = get_annotations_for_mode(db, image_id, mode)
+        current_ids = {str(a.id) for a in annotations}
 
     latest_result = get_latest_result(db, image_id, mode)
 
@@ -129,6 +139,7 @@ def _save_coco_to_storage(
     bboxes: list[tuple[int, int, int, int]],
     masks: NDArray[np.uint8],
     result_id: uuid.UUID,
+    points: list[tuple[int, int, bool]] | None = None,
 ) -> str:
     """Generate and save COCO JSON to storage using result_id for history support."""
     coco_blob_path = f"coco/{result_id}.json"
@@ -139,10 +150,123 @@ def _save_coco_to_storage(
         height=image.height,
         bboxes=bboxes,
         masks=masks,
+        points=points,
     )
     coco_bytes = json.dumps(coco_json, indent=2).encode("utf-8")
     storage.upload_blob(coco_blob_path, coco_bytes, content_type="application/json")
     return coco_blob_path
+
+
+def _process_inside_box(
+    storage: StorageService,
+    sam3: SAM3Service,
+    image: Image,
+    pil_image: PILImage.Image,
+    annotations: list[BboxAnnotation],
+    result: ProcessingResult,
+) -> bool:
+    """Process image with bounding box prompts (INSIDE_BOX mode).
+
+    Returns:
+        True if successful, False if no annotations to process.
+    """
+    if not annotations:
+        logger.warning(f"No segment annotations for image {image.id}, skipping")
+        return False
+
+    bboxes = [(ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height) for ann in annotations]
+    masks = sam3.process_image(pil_image, bboxes)
+
+    result.mask_blob_path = _save_mask_to_storage(storage, masks, result.id)
+    result.coco_json_blob_path = _save_coco_to_storage(storage, image, bboxes, masks, result.id)
+    return True
+
+
+def _process_find_all(
+    storage: StorageService,
+    sam3: SAM3Service,
+    image: Image,
+    pil_image: PILImage.Image,
+    annotations: list[BboxAnnotation],
+    result: ProcessingResult,
+) -> bool:
+    """Process image with text prompt and/or exemplar boxes (FIND_ALL mode).
+
+    Returns:
+        True if successful, False if no text prompt or exemplars to process.
+    """
+    text_prompt = image.text_prompt
+
+    if not text_prompt and not annotations:
+        logger.warning(f"No text prompt or exemplars for image {image.id} in find-all mode, skipping")
+        return False
+
+    # Convert exemplar annotations to (bbox_xywh, is_positive) format
+    exemplar_boxes = None
+    if annotations:
+        exemplar_boxes = [
+            (
+                (ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height),
+                ann.prompt_type == PromptType.POSITIVE_EXEMPLAR,
+            )
+            for ann in annotations
+        ]
+
+    # Run find-all inference
+    find_result = sam3.process_image_find_all(pil_image, text_prompt, exemplar_boxes)
+
+    # Store discovered bboxes in result
+    result.bboxes = [{"x": x, "y": y, "width": w, "height": h} for x, y, w, h in find_result.bboxes]
+
+    # Save masks and COCO JSON
+    if find_result.masks.size > 0:
+        result.mask_blob_path = _save_mask_to_storage(storage, find_result.masks, result.id)
+        result.coco_json_blob_path = _save_coco_to_storage(
+            storage, image, find_result.bboxes, find_result.masks, result.id
+        )
+    else:
+        # No discoveries - save empty results
+        empty_masks = np.zeros((0, pil_image.height, pil_image.width), dtype=np.uint8)
+        result.mask_blob_path = _save_mask_to_storage(storage, empty_masks, result.id)
+        result.coco_json_blob_path = _save_coco_to_storage(storage, image, [], empty_masks, result.id)
+
+    logger.info(f"Find-all discovered {len(find_result.bboxes)} objects for image {image.id}")
+    return True
+
+
+def _process_point(
+    storage: StorageService,
+    sam3: SAM3Service,
+    image: Image,
+    pil_image: PILImage.Image,
+    point_annotations: list[PointAnnotation],
+    result: ProcessingResult,
+) -> bool:
+    """Process image with point prompts (POINT mode).
+
+    Returns:
+        True if successful, False if no point annotations to process.
+    """
+    if not point_annotations:
+        logger.warning(f"No point annotations for image {image.id}, skipping")
+        return False
+
+    # Extract coordinates and labels from point annotations
+    points = [(ann.point_x, ann.point_y) for ann in point_annotations]
+    labels = [1 if ann.is_positive else 0 for ann in point_annotations]
+
+    # Run point-based inference
+    masks = sam3.process_image_points(pil_image, points, labels)
+
+    # Prepare points metadata for COCO export (x, y, is_positive)
+    points_metadata = [(ann.point_x, ann.point_y, ann.is_positive) for ann in point_annotations]
+
+    # Save mask (bboxes computed from mask, points stored in metadata)
+    result.mask_blob_path = _save_mask_to_storage(storage, masks, result.id)
+    result.coco_json_blob_path = _save_coco_to_storage(storage, image, [], masks, result.id, points=points_metadata)
+
+    logger.info(f"Point mode processed {len(points)} points for image {image.id}")
+    return True
 
 
 def process_single_image(
@@ -155,14 +279,20 @@ def process_single_image(
 ) -> ProcessingResult | None:
     """Process a single image through SAM3 inference.
 
-    Creates a ProcessingResult with job_id, annotation_ids, text_prompt_used, and bboxes.
+    Dispatches to mode-specific helper functions for the actual processing.
 
     Returns:
         ProcessingResult if successful, None otherwise.
     """
-    # Get annotations for this mode
-    annotations = get_annotations_for_mode(db, image.id, mode)
-    annotation_ids = [str(a.id) for a in annotations]
+    # Get annotations based on mode
+    if mode == SegmentationMode.POINT:
+        point_annotations = get_point_annotations_for_image(db, image.id)
+        annotation_ids = [str(a.id) for a in point_annotations]
+        bbox_annotations: list[BboxAnnotation] = []
+    else:
+        bbox_annotations = get_annotations_for_mode(db, image.id, mode)
+        annotation_ids = [str(a.id) for a in bbox_annotations]
+        point_annotations: list[PointAnnotation] = []
 
     # Load image data
     image_data = storage.get_image(image.blob_path)
@@ -176,69 +306,27 @@ def process_single_image(
         annotation_ids=annotation_ids,
         text_prompt_used=image.text_prompt if mode == SegmentationMode.FIND_ALL else None,
         bboxes=None,
-        mask_blob_path="",  # Will be updated
-        coco_json_blob_path="",  # Will be updated
+        mask_blob_path="",  # Will be updated by helper
+        coco_json_blob_path="",  # Will be updated by helper
     )
     db.add(result)
     db.flush()  # Get the result.id
 
+    # Dispatch to mode-specific processing
     if mode == SegmentationMode.INSIDE_BOX:
-        # Inside-box mode - process with bounding boxes
-        if not annotations:
-            logger.warning(f"No segment annotations for image {image.id}, skipping")
-            db.rollback()
-            return None
-
-        bboxes = [(ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height) for ann in annotations]
-        masks = sam3.process_image(pil_image, bboxes)
-
-        mask_blob_path = _save_mask_to_storage(storage, masks, result.id)
-        coco_blob_path = _save_coco_to_storage(storage, image, bboxes, masks, result.id)
-
-        result.mask_blob_path = mask_blob_path
-        result.coco_json_blob_path = coco_blob_path
-
+        success = _process_inside_box(storage, sam3, image, pil_image, bbox_annotations, result)
+    elif mode == SegmentationMode.FIND_ALL:
+        success = _process_find_all(storage, sam3, image, pil_image, bbox_annotations, result)
+    elif mode == SegmentationMode.POINT:
+        success = _process_point(storage, sam3, image, pil_image, point_annotations, result)
     else:
-        # Find-all mode
-        text_prompt = image.text_prompt
+        logger.error(f"Unknown segmentation mode: {mode}")
+        db.rollback()
+        return None
 
-        # Validate: need text prompt or exemplars
-        if not text_prompt and not annotations:
-            logger.warning(f"No text prompt or exemplars for image {image.id} in find-all mode, skipping")
-            db.rollback()
-            return None
-
-        # Convert exemplar annotations to (bbox_xywh, is_positive) format
-        exemplar_boxes = None
-        if annotations:
-            exemplar_boxes = [
-                (
-                    (ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height),
-                    ann.prompt_type == PromptType.POSITIVE_EXEMPLAR,
-                )
-                for ann in annotations
-            ]
-
-        # Run find-all inference
-        find_result = sam3.process_image_find_all(pil_image, text_prompt, exemplar_boxes)
-
-        # Store discovered bboxes in result
-        result.bboxes = [{"x": x, "y": y, "width": w, "height": h} for x, y, w, h in find_result.bboxes]
-
-        # Save masks and COCO JSON
-        if find_result.masks.size > 0:
-            mask_blob_path = _save_mask_to_storage(storage, find_result.masks, result.id)
-            coco_blob_path = _save_coco_to_storage(storage, image, find_result.bboxes, find_result.masks, result.id)
-        else:
-            # No discoveries - save empty results
-            empty_masks = np.zeros((0, pil_image.height, pil_image.width), dtype=np.uint8)
-            mask_blob_path = _save_mask_to_storage(storage, empty_masks, result.id)
-            coco_blob_path = _save_coco_to_storage(storage, image, [], empty_masks, result.id)
-
-        result.mask_blob_path = mask_blob_path
-        result.coco_json_blob_path = coco_blob_path
-
-        logger.info(f"Find-all discovered {len(find_result.bboxes)} objects for image {image.id}")
+    if not success:
+        db.rollback()
+        return None
 
     db.commit()
     logger.info(f"Processed image {image.id} ({image.filename}) with mode {mode.value}")

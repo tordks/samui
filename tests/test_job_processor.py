@@ -3,11 +3,12 @@
 import uuid
 from datetime import UTC, datetime
 
-from samui_backend.db.models import BboxAnnotation, Image, ProcessingJob, ProcessingResult
+from samui_backend.db.models import BboxAnnotation, Image, PointAnnotation, ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, PromptType, SegmentationMode
 from samui_backend.services.job_processor import (
     cleanup_stale_jobs,
     get_images_needing_processing,
+    get_point_annotations_for_image,
     needs_processing,
 )
 from sqlalchemy.orm import Session
@@ -300,3 +301,142 @@ class TestCleanupStaleJobs:
         assert count == 2
         assert job1.status == JobStatus.FAILED
         assert job2.status == JobStatus.FAILED
+
+
+def create_test_point_annotation(
+    db: Session,
+    image_id: uuid.UUID,
+    point_x: int = 50,
+    point_y: int = 50,
+    is_positive: bool = True,
+) -> PointAnnotation:
+    """Create a test point annotation in the database."""
+    annotation = PointAnnotation(
+        image_id=image_id,
+        point_x=point_x,
+        point_y=point_y,
+        is_positive=is_positive,
+    )
+    db.add(annotation)
+    db.commit()
+    return annotation
+
+
+class TestGetPointAnnotationsForImage:
+    """Tests for get_point_annotations_for_image function."""
+
+    def test_returns_point_annotations_for_image(self, db_session: Session) -> None:
+        """Returns all point annotations for the given image."""
+        image = create_test_image(db_session)
+        ann1 = create_test_point_annotation(db_session, image.id, point_x=25, point_y=25, is_positive=True)
+        ann2 = create_test_point_annotation(db_session, image.id, point_x=75, point_y=75, is_positive=False)
+
+        result = get_point_annotations_for_image(db_session, image.id)
+
+        assert len(result) == 2
+        assert {a.id for a in result} == {ann1.id, ann2.id}
+
+    def test_returns_empty_when_no_points(self, db_session: Session) -> None:
+        """Returns empty list when image has no point annotations."""
+        image = create_test_image(db_session)
+
+        result = get_point_annotations_for_image(db_session, image.id)
+
+        assert result == []
+
+    def test_only_returns_points_for_specified_image(self, db_session: Session) -> None:
+        """Only returns point annotations for the specified image, not others."""
+        img1 = create_test_image(db_session, "test1.jpg")
+        img2 = create_test_image(db_session, "test2.jpg")
+
+        ann1 = create_test_point_annotation(db_session, img1.id)
+        create_test_point_annotation(db_session, img2.id)  # For different image
+
+        result = get_point_annotations_for_image(db_session, img1.id)
+
+        assert len(result) == 1
+        assert result[0].id == ann1.id
+
+
+class TestNeedsProcessingPointMode:
+    """Tests for needs_processing function with POINT mode."""
+
+    def test_point_mode_no_points_no_result_returns_false(self, db_session: Session) -> None:
+        """POINT mode with no point annotations and no previous result returns False."""
+        image = create_test_image(db_session)
+        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
+        assert result is False
+
+    def test_point_mode_has_points_no_result_returns_true(self, db_session: Session) -> None:
+        """POINT mode with point annotations but no previous result returns True."""
+        image = create_test_image(db_session)
+        create_test_point_annotation(db_session, image.id)
+
+        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
+        assert result is True
+
+    def test_point_mode_points_unchanged_returns_false(self, db_session: Session) -> None:
+        """POINT mode with same point annotations as previous result returns False."""
+        image = create_test_image(db_session)
+        ann = create_test_point_annotation(db_session, image.id)
+        job = create_test_job(db_session, [image.id], mode=SegmentationMode.POINT)
+        create_test_result(
+            db_session, job.id, image.id, mode=SegmentationMode.POINT, annotation_ids=[str(ann.id)]
+        )
+
+        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
+        assert result is False
+
+    def test_point_mode_point_added_returns_true(self, db_session: Session) -> None:
+        """POINT mode with new point annotation added since last result returns True."""
+        image = create_test_image(db_session)
+        ann1 = create_test_point_annotation(db_session, image.id, point_x=25, point_y=25)
+        job = create_test_job(db_session, [image.id], mode=SegmentationMode.POINT)
+        create_test_result(
+            db_session, job.id, image.id, mode=SegmentationMode.POINT, annotation_ids=[str(ann1.id)]
+        )
+
+        # Add another point annotation
+        create_test_point_annotation(db_session, image.id, point_x=75, point_y=75)
+
+        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
+        assert result is True
+
+    def test_point_mode_point_deleted_returns_true(self, db_session: Session) -> None:
+        """POINT mode with point annotation deleted since last result returns True."""
+        image = create_test_image(db_session)
+        ann1 = create_test_point_annotation(db_session, image.id, point_x=25, point_y=25)
+        ann2 = create_test_point_annotation(db_session, image.id, point_x=75, point_y=75)
+        job = create_test_job(db_session, [image.id], mode=SegmentationMode.POINT)
+        create_test_result(
+            db_session,
+            job.id,
+            image.id,
+            mode=SegmentationMode.POINT,
+            annotation_ids=[str(ann1.id), str(ann2.id)],
+        )
+
+        # Delete one point annotation
+        db_session.delete(ann2)
+        db_session.commit()
+
+        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
+        assert result is True
+
+    def test_point_mode_ignores_bbox_annotations(self, db_session: Session) -> None:
+        """POINT mode ignores bbox annotations."""
+        image = create_test_image(db_session)
+        # Add bbox annotation (should be ignored in point mode)
+        create_test_annotation(db_session, image.id, prompt_type=PromptType.SEGMENT)
+
+        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
+        assert result is False  # No point annotations
+
+    def test_inside_box_mode_ignores_point_annotations(self, db_session: Session) -> None:
+        """Inside-box mode ignores point annotations."""
+        image = create_test_image(db_session)
+        # Add point annotation (should be ignored in inside-box mode)
+        create_test_point_annotation(db_session, image.id)
+
+        result = needs_processing(db_session, image.id, SegmentationMode.INSIDE_BOX)
+        assert result is False  # No bbox annotations
