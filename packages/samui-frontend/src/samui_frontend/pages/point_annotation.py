@@ -6,15 +6,21 @@ import streamlit as st
 from PIL import Image, ImageDraw
 
 from samui_frontend.api import (
+    create_job,
     create_point_annotation,
     delete_point_annotation,
     fetch_image_data,
+    fetch_image_history,
     fetch_images,
+    fetch_job,
     fetch_point_annotations,
+    fetch_result_mask,
 )
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
+from samui_frontend.components.mask_overlay import composite_mask_on_image
 from samui_frontend.components.point_annotator import find_point_at_click, point_annotator
 from samui_frontend.constants import COLOR_NEGATIVE_EXEMPLAR, COLOR_POSITIVE_EXEMPLAR
+from samui_frontend.models import SegmentationMode
 
 # Point rendering for gallery thumbnails
 THUMBNAIL_POINT_RADIUS = 4
@@ -171,20 +177,54 @@ def _render_point_stats(points: list[dict]) -> None:
         )
 
 
-def _render_action_buttons(_image_id: str, points: list[dict]) -> None:
+def _render_action_buttons(image_id: str, points: list[dict]) -> None:
     """Render process and clear buttons."""
     st.divider()
 
-    # Process button - will be implemented in Phase 4
-    # _image_id will be used when processing is implemented
-    if st.button("Process", key="point_process_btn", disabled=len(points) == 0):
-        st.info("Processing will be implemented in Phase 4")
+    # Process button - creates a job with POINT mode
+    if st.button("Process", key="point_process_btn", disabled=len(points) == 0, type="primary"):
+        result = create_job([image_id], SegmentationMode.POINT, force_all=True)
+        if result and result.get("id"):
+            st.session_state.point_current_job_id = result.get("id")
+            st.rerun()
+        elif result and result.get("error"):
+            st.error(result["error"])
+        else:
+            st.error("Failed to create processing job")
 
     # Clear all points button
     if st.button("Clear All Points", key="point_clear_btn", disabled=len(points) == 0):
         for point in points:
             delete_point_annotation(point["id"])
         st.rerun()
+
+
+def _render_mask_controls_sidebar() -> tuple[bool, int]:
+    """Render mask overlay controls in sidebar.
+
+    Returns:
+        Tuple of (show_mask, opacity).
+    """
+    st.subheader("Mask Overlay")
+
+    show_mask = st.checkbox(
+        "Show Mask",
+        value=st.session_state.point_show_mask,
+        key="point_show_mask_checkbox",
+    )
+    st.session_state.point_show_mask = show_mask
+
+    opacity = st.slider(
+        "Opacity",
+        min_value=0,
+        max_value=100,
+        value=st.session_state.point_mask_opacity,
+        key="point_mask_opacity_slider",
+        disabled=not show_mask,
+    )
+    st.session_state.point_mask_opacity = opacity
+
+    return show_mask, opacity
 
 
 def _render_instructions() -> None:
@@ -196,13 +236,45 @@ def _render_instructions() -> None:
     st.caption("Green = positive (foreground), Red = negative (background).")
 
 
-def _render_image_annotator(
+@st.fragment(run_every=1)
+def _render_processing_status() -> None:
+    """Fragment that polls processing status with auto-refresh."""
+    job_id = st.session_state.get("point_current_job_id")
+
+    if not job_id:
+        return
+
+    job = fetch_job(job_id)
+    if job and job.get("is_running"):
+        st.status("Processing...", state="running")
+    elif job and job.get("error"):
+        st.error("Job failed")
+        st.session_state.point_current_job_id = None
+    elif job and job.get("status") == "completed":
+        st.success("Done")
+        st.session_state.point_current_job_id = None
+    else:
+        st.session_state.point_current_job_id = None
+
+
+def _get_latest_result(image_id: str) -> dict | None:
+    """Get the latest processing result for POINT mode."""
+    history = fetch_image_history(image_id, SegmentationMode.POINT)
+    return history[0] if history else None
+
+
+def _render_combined_image(
     current_image: dict,
     points: list[dict],
     interaction_mode: str,
     is_positive: bool,
+    show_mask: bool,
+    mask_opacity: int,
 ) -> None:
-    """Render the image with point annotator component."""
+    """Render a single image with mask overlay (if available) and points.
+
+    This combines the mask overlay and point annotation into a single interactive image.
+    """
     image_id = current_image["id"]
     image_data = fetch_image_data(image_id)
 
@@ -213,10 +285,22 @@ def _render_image_annotator(
     pil_image = Image.open(BytesIO(image_data))
     st.subheader(current_image["filename"])
 
+    # Check for existing result and composite mask if available and enabled
+    base_image = pil_image
+    result = _get_latest_result(image_id)
+
+    if result and show_mask:
+        mask_data = fetch_result_mask(result["id"])
+        if mask_data:
+            mask = Image.open(BytesIO(mask_data)).convert("L")
+            base_image = composite_mask_on_image(pil_image, mask, mask_opacity)
+
+    # Pass the (potentially masked) image to point_annotator
+    # which will draw points on top and handle click detection
     click = point_annotator(
-        pil_image,
+        base_image,
         points,
-        key=f"point_annotator_{image_id}_{interaction_mode}",
+        key=f"point_annotator_{image_id}_{interaction_mode}_{show_mask}_{mask_opacity}",
     )
 
     if click:
@@ -245,6 +329,10 @@ def _init_session_state() -> None:
         st.session_state.point_interaction_mode = "add"
     if "point_is_positive" not in st.session_state:
         st.session_state.point_is_positive = True
+    if "point_show_mask" not in st.session_state:
+        st.session_state.point_show_mask = True
+    if "point_mask_opacity" not in st.session_state:
+        st.session_state.point_mask_opacity = 50
 
 
 def render() -> None:
@@ -284,11 +372,18 @@ def render() -> None:
         st.divider()
         _render_point_stats(points)
         _render_action_buttons(current_image["id"], points)
+
+        # Processing status
+        _render_processing_status()
+
+        st.divider()
+        show_mask, mask_opacity = _render_mask_controls_sidebar()
+
         _render_instructions()
 
-    # Main content
+    # Main content - single combined image
     with main_col:
         _render_navigation_controls(images, key_suffix="top")
-        _render_image_annotator(current_image, points, interaction_mode, is_positive)
+        _render_combined_image(current_image, points, interaction_mode, is_positive, show_mask, mask_opacity)
         _render_navigation_controls(images, key_suffix="bottom")
         _render_thumbnail_gallery(images)

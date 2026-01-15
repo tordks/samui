@@ -200,26 +200,26 @@ Step-by-step implementation guide for point-based segmentation mode.
 
 **Tasks:**
 
-- [ ] [P4.1] Create `packages/samui-frontend/src/samui_frontend/components/mask_overlay.py`
+- [x] [P4.1] Create `packages/samui-frontend/src/samui_frontend/components/mask_overlay.py`
   - Accept original image and mask image
   - Toggle state: show_overlay (boolean)
   - Alpha slider: 0-100% with 50% default
   - Render original image OR original with mask overlay based on toggle
   - Use PIL to composite mask onto original with alpha
 
-- [ ] [P4.2] Add job creation for POINT mode in `point_annotation.py`
+- [x] [P4.2] Add job creation for POINT mode in `point_annotation.py`
   - Process button creates job with mode=POINT
   - Pass current image_id to job creation
   - Show processing indicator while job runs
   - Poll job status until complete
 
-- [ ] [P4.3] Add result fetching and display in `point_annotation.py`
+- [x] [P4.3] Add result fetching and display in `point_annotation.py`
   - After job completes, fetch mask from result
   - Display mask using MaskOverlay component
   - Add toggle button for overlay on/off
   - Add alpha slider below image
 
-- [ ] [P4.4] Add POINT mode to history display in `packages/samui-frontend/src/samui_frontend/pages/history.py`
+- [x] [P4.4] Add POINT mode to history display in `packages/samui-frontend/src/samui_frontend/pages/history.py`
   - Include POINT results in history listing
   - Display point count for POINT mode results
 
@@ -233,12 +233,12 @@ Step-by-step implementation guide for point-based segmentation mode.
   - Adjust alpha slider
   - Verify result appears in History page
 
-- [ ] [P4.6] Run full test suite: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P4.6] Run full test suite: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check packages/ --fix`
-- [ ] Code formatting: Run `uvx ruff format packages/`
+- [x] Code quality: Run `uvx ruff check packages/ --fix`
+- [x] Code formatting: Run `uvx ruff format packages/`
 - [ ] Review: Complete end-to-end workflow test, verify all three modes work
 
 **Phase 4 Complete:** Point mode fully functional with interactive annotation, processing, and result display. Overlay toggle and alpha slider working. Feature complete and ready for use.
