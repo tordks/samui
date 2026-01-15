@@ -3,7 +3,7 @@
 import streamlit as st
 
 from samui_frontend.models import PromptType, SegmentationMode
-from samui_frontend.pages import annotation, history, jobs, processing, upload
+from samui_frontend.pages import annotation, history, jobs, upload
 
 
 def _init_session_state() -> None:
@@ -13,6 +13,8 @@ def _init_session_state() -> None:
         "segmentation_mode": SegmentationMode.INSIDE_BOX,
         "exemplar_type": PromptType.POSITIVE_EXEMPLAR,
         "selected_processed_index": 0,
+        "current_job_id": None,
+        "last_processed_count": 0,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -33,7 +35,7 @@ _init_session_state()
 # Navigation
 page = st.sidebar.radio(
     "Navigation",
-    ["Upload", "Annotation", "Processing", "History", "Jobs"],
+    ["Upload", "Annotation", "History", "Jobs"],
     index=0,
 )
 
@@ -42,8 +44,6 @@ if page == "Upload":
     upload.render()
 elif page == "Annotation":
     annotation.render()
-elif page == "Processing":
-    processing.render()
 elif page == "History":
     history.render()
 elif page == "Jobs":

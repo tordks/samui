@@ -20,18 +20,16 @@ def render_mode_toggle(key: str = "mode_radio") -> SegmentationMode:
     }
     mode_descriptions = {
         SegmentationMode.INSIDE_BOX: "Segment objects inside each bounding box",
-        SegmentationMode.FIND_ALL: "Find all instances matching text prompt or exemplars",
+        SegmentationMode.FIND_ALL: "Find all instances matching text prompt and/or exemplars",
     }
 
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        selected_label = st.radio(
-            "Segmentation Mode",
-            options=list(mode_options.values()),
-            index=0 if st.session_state.segmentation_mode == SegmentationMode.INSIDE_BOX else 1,
-            horizontal=True,
-            key=key,
-        )
+    selected_label = st.radio(
+        "Segmentation Mode",
+        options=list(mode_options.values()),
+        index=0 if st.session_state.segmentation_mode == SegmentationMode.INSIDE_BOX else 1,
+        horizontal=True,
+        key=key,
+    )
 
     # Map label back to enum
     mode = SegmentationMode.INSIDE_BOX if selected_label == "Inside Box" else SegmentationMode.FIND_ALL
@@ -41,7 +39,6 @@ def render_mode_toggle(key: str = "mode_radio") -> SegmentationMode:
         st.session_state.segmentation_mode = mode
         st.rerun()
 
-    with col2:
-        st.caption(mode_descriptions[mode])
+    st.caption(mode_descriptions[mode])
 
     return mode

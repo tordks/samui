@@ -16,6 +16,11 @@ from samui_frontend.api import (
 from samui_frontend.components.bbox_annotator import bbox_annotator
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
 from samui_frontend.components.mode_toggle import render_mode_toggle
+from samui_frontend.components.process_controls import (
+    get_images_ready_for_mode,
+    render_process_buttons,
+    render_processing_status,
+)
 from samui_frontend.constants import COLOR_NEGATIVE_EXEMPLAR, COLOR_POSITIVE_EXEMPLAR
 from samui_frontend.models import PromptType, SegmentationMode
 from samui_frontend.utils import get_annotation_color, get_text_prompt_label
@@ -264,11 +269,22 @@ def render() -> None:
     st.header("Annotate Images")
     st.caption("Draw bounding boxes to define segmentation regions")
 
-    # Mode toggle at the top
-    current_mode = render_mode_toggle(key="mode_radio")
-    st.divider()
-
     images = fetch_images()
+
+    # Mode toggle and process controls in same row
+    mode_col, process_col, status_col = st.columns([1, 1, 1])
+
+    with mode_col:
+        current_mode = render_mode_toggle(key="mode_radio")
+
+    with process_col:
+        ready_images = get_images_ready_for_mode(images, current_mode) if images else []
+        render_process_buttons(ready_images, current_mode)
+
+    with status_col:
+        render_processing_status()
+
+    st.divider()
 
     if not images:
         st.info("No images uploaded. Please upload images first.")

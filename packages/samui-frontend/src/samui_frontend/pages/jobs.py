@@ -1,10 +1,12 @@
 """Jobs page showing all processing jobs with status."""
 
+import json
 from datetime import datetime
 
 import streamlit as st
 
-from samui_frontend.api import fetch_jobs
+from samui_frontend.api import download_coco_json, fetch_images, fetch_jobs
+from samui_frontend.models import SegmentationMode
 
 
 def _format_timestamp(timestamp_str: str | None) -> str:
@@ -62,6 +64,50 @@ def _get_mode_display(mode: str) -> str:
     return modes.get(mode, mode)
 
 
+def _download_all_coco_json(mode: SegmentationMode) -> dict | None:
+    """Download combined COCO JSON for all processed images.
+
+    Fetches individual COCO data and combines into single file with:
+    - Combined images list
+    - Combined annotations list (with updated IDs to avoid conflicts)
+    - Single categories list
+    """
+    images = fetch_images()
+    if not images:
+        return None
+
+    combined: dict = {
+        "images": [],
+        "annotations": [],
+        "categories": [],
+    }
+    categories_seen: set[int] = set()
+    annotation_id_offset = 0
+
+    for img in images:
+        coco_data = download_coco_json(img["id"], mode)
+        if not coco_data:
+            continue
+
+        combined["images"].extend(coco_data.get("images", []))
+
+        for ann in coco_data.get("annotations", []):
+            ann_copy = ann.copy()
+            ann_copy["id"] = ann_copy["id"] + annotation_id_offset
+            combined["annotations"].append(ann_copy)
+
+        if coco_data.get("annotations"):
+            max_id = max(a["id"] for a in coco_data["annotations"])
+            annotation_id_offset += max_id + 1
+
+        for cat in coco_data.get("categories", []):
+            if cat["id"] not in categories_seen:
+                categories_seen.add(cat["id"])
+                combined["categories"].append(cat)
+
+    return combined if combined["images"] else None
+
+
 def _render_job_line(job: dict) -> None:
     """Render a single job as a compact one-line entry."""
     status = job.get("status", "unknown")
@@ -112,8 +158,39 @@ def render() -> None:
     # Fetch jobs
     jobs = fetch_jobs()
 
+    # COCO Export section
+    st.subheader("Export Results")
+
+    export_col1, export_col2 = st.columns(2)
+
+    with export_col1:
+        coco_inside = _download_all_coco_json(SegmentationMode.INSIDE_BOX)
+        if coco_inside:
+            st.download_button(
+                "Download COCO (Inside Box)",
+                data=json.dumps(coco_inside, indent=2),
+                file_name="coco_annotations_inside_box.json",
+                mime="application/json",
+            )
+        else:
+            st.button("Download COCO (Inside Box)", disabled=True, help="No processed results")
+
+    with export_col2:
+        coco_find_all = _download_all_coco_json(SegmentationMode.FIND_ALL)
+        if coco_find_all:
+            st.download_button(
+                "Download COCO (Find All)",
+                data=json.dumps(coco_find_all, indent=2),
+                file_name="coco_annotations_find_all.json",
+                mime="application/json",
+            )
+        else:
+            st.button("Download COCO (Find All)", disabled=True, help="No processed results")
+
+    st.divider()
+
     if not jobs:
-        st.info("No processing jobs yet. Start processing from the Processing page.")
+        st.info("No processing jobs yet. Start processing from the Annotation page.")
         return
 
     # Summary stats
