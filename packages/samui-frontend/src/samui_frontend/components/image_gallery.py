@@ -102,7 +102,7 @@ def image_gallery(
     config = config or GalleryConfig()
     selected_idx = None
     display_images = images[: config.max_images] if config.max_images else images
-    cols = st.columns(min(len(display_images), config.columns))
+    cols = st.columns(config.columns)
 
     for idx, image in enumerate(display_images):
         col = cols[idx % config.columns]
@@ -113,7 +113,9 @@ def image_gallery(
                 if label:
                     st.caption(label)
 
-            image_data = _fetch_image_data_cached(image["id"])
+            # Use image_id if present, otherwise use id
+            image_id = image.get("image_id", image["id"])
+            image_data = _fetch_image_data_cached(image_id)
             if image_data:
                 _render_image(image, image_data, image_renderer)
             else:

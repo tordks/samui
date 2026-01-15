@@ -12,7 +12,12 @@ from samui_frontend.api import (
     fetch_images,
     fetch_result_mask,
 )
-from samui_frontend.components import arrow_navigator, render_mode_toggle
+from samui_frontend.components import (
+    GalleryConfig,
+    arrow_navigator,
+    image_gallery,
+    render_mode_toggle,
+)
 
 
 def _create_history_overlay(result: dict, image_data: bytes) -> Image.Image:
@@ -74,9 +79,27 @@ def _format_timestamp(timestamp_str: str) -> str:
         return timestamp_str or "Unknown"
 
 
+def _history_label(result: dict) -> str | None:
+    """Generate label for history gallery item showing discoveries and prompt info."""
+    parts = []
+
+    bbox_count = len(result.get("bboxes") or [])
+    if bbox_count > 0:
+        parts.append(f"{bbox_count} discoveries")
+
+    text_prompt = result.get("text_prompt_used")
+    if text_prompt:
+        prompt_display = (
+            f'"{text_prompt[:30]}..."' if len(text_prompt) > 30 else f'"{text_prompt}"'
+        )
+        parts.append(f"Prompt: {prompt_display}")
+
+    return " | ".join(parts) if parts else None
+
+
 def _render_history_gallery(
     results: list[dict],
-    image_data: bytes,
+    image_id: str,
 ) -> None:
     """Render the history gallery showing processing results with overlays."""
     if not results:
@@ -85,28 +108,25 @@ def _render_history_gallery(
 
     st.subheader(f"Processing History ({len(results)} results)")
 
-    # Create columns for gallery display
-    cols_per_row = min(len(results), 4)
-    cols = st.columns(cols_per_row)
+    # Transform results for gallery:
+    # - image_id: which image to load for display
+    # - id: result's own id (used for unique widget keys)
+    # - filename: formatted timestamp for caption
+    gallery_items = [
+        {
+            **result,
+            "image_id": image_id,
+            "filename": _format_timestamp(result.get("processed_at", "")),
+        }
+        for result in results
+    ]
 
-    for idx, result in enumerate(results):
-        col = cols[idx % cols_per_row]
-        with col:
-            # Create overlay image
-            overlay = _create_history_overlay(result, image_data)
-            timestamp = _format_timestamp(result.get("processed_at", ""))
-
-            # Show the overlaid image with timestamp as caption
-            st.image(overlay, caption=timestamp, use_container_width=True)
-
-            # Show additional info
-            bbox_count = len(result.get("bboxes") or [])
-            if bbox_count > 0:
-                st.caption(f"{bbox_count} discoveries")
-
-            text_prompt = result.get("text_prompt_used")
-            if text_prompt:
-                st.caption(f'Prompt: "{text_prompt[:30]}..."' if len(text_prompt) > 30 else f'Prompt: "{text_prompt}"')
+    image_gallery(
+        gallery_items,
+        config=GalleryConfig(columns=4, show_dimensions=False, key_prefix="history_"),
+        image_renderer=_create_history_overlay,
+        label_callback=_history_label,
+    )
 
 
 def render() -> None:
@@ -161,4 +181,4 @@ def render() -> None:
 
     # Fetch and display processing history
     history = fetch_image_history(selected_image["id"], current_mode)
-    _render_history_gallery(history, image_data)
+    _render_history_gallery(history, selected_image["id"])
