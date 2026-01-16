@@ -12,15 +12,6 @@ from samui_backend.enums import (
 )
 
 
-class ImageCreate(BaseModel):
-    """Schema for creating an image (internal use)."""
-
-    filename: str
-    blob_path: str
-    width: int
-    height: int
-
-
 class ImageResponse(BaseModel):
     """Schema for image response."""
 
@@ -108,36 +99,6 @@ class PointAnnotationList(BaseModel):
 
     annotations: list[PointAnnotationResponse]
     total: int
-
-
-class ProcessRequest(BaseModel):
-    """Schema for requesting processing of images."""
-
-    image_ids: list[uuid.UUID]
-    mode: SegmentationMode = SegmentationMode.INSIDE_BOX
-
-
-class ProcessResponse(BaseModel):
-    """Schema for processing start response."""
-
-    batch_id: uuid.UUID
-    total_images: int
-    message: str
-
-
-class ProcessingResultResponse(BaseModel):
-    """Schema for processing result response."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    job_id: uuid.UUID
-    image_id: uuid.UUID
-    mode: SegmentationMode
-    mask_blob_path: str
-    coco_json_blob_path: str
-    processed_at: datetime
-    bboxes: list[dict] | None = None
 
 
 class BboxAnnotationSnapshot(BaseModel):

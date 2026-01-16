@@ -1,7 +1,5 @@
 """Shared utility functions."""
 
-from samui_backend.enums import SegmentationMode
-
 
 def get_image_content_type(extension: str) -> str:
     """Get MIME content type for an image extension.
@@ -16,17 +14,3 @@ def get_image_content_type(extension: str) -> str:
     if ext == "jpg":
         return "image/jpeg"
     return f"image/{ext}"
-
-
-def get_blob_path_suffix(mode: SegmentationMode) -> str:
-    """Get filename suffix for non-default segmentation modes.
-
-    Args:
-        mode: The segmentation mode.
-
-    Returns:
-        Empty string for INSIDE_BOX mode, otherwise "_{mode.value}".
-    """
-    if mode == SegmentationMode.INSIDE_BOX:
-        return ""
-    return f"_{mode.value}"

@@ -68,18 +68,6 @@ class StorageService:
         blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)
         return blob_client.download_blob().readall()
 
-    def get_image_url(self, blob_path: str) -> str:
-        """Get a URL for accessing an image.
-
-        Args:
-            blob_path: Path to the blob.
-
-        Returns:
-            URL to access the image.
-        """
-        blob_client = self._client.get_blob_client(container=self._container_name, blob=blob_path)
-        return blob_client.url
-
     def delete_image(self, blob_path: str) -> None:
         """Delete an image from blob storage.
 

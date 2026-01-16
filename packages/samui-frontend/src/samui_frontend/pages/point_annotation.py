@@ -17,10 +17,10 @@ from samui_frontend.api import (
     fetch_result_mask,
 )
 from samui_frontend.components.image_gallery import GalleryConfig, image_gallery
-from samui_frontend.components.mask_overlay import composite_mask_on_image
 from samui_frontend.components.point_annotator import find_point_at_click, point_annotator
 from samui_frontend.constants import COLOR_NEGATIVE_EXEMPLAR, COLOR_POSITIVE_EXEMPLAR
 from samui_frontend.models import SegmentationMode
+from samui_frontend.utils import composite_mask_on_image
 
 # Point rendering for gallery thumbnails
 THUMBNAIL_POINT_RADIUS = 4

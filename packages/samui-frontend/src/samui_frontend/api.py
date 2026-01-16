@@ -152,52 +152,6 @@ def upload_image(filename: str, content: bytes, content_type: str) -> dict | Non
         return None
 
 
-def fetch_mask_data(image_id: str, mode: SegmentationMode | None = None) -> bytes | None:
-    """Fetch mask data from the API for the specified mode."""
-    try:
-        params = {}
-        if mode:
-            params["mode"] = mode.value
-        response = httpx.get(
-            f"{API_URL}/process/mask/{image_id}",
-            params=params if params else None,
-            timeout=API_TIMEOUT_READ,
-        )
-        if response.status_code == 200:
-            return response.content
-    except httpx.HTTPError:
-        pass
-    return None
-
-
-def start_processing(image_ids: list[str], mode: SegmentationMode) -> dict | None:
-    """Start processing for given image IDs with the specified mode.
-
-    Returns the response dict on success, None on failure.
-    Note: Caller should handle displaying errors to the user.
-    """
-    try:
-        response = httpx.post(
-            f"{API_URL}/process",
-            json={"image_ids": image_ids, "mode": mode.value},
-            timeout=API_TIMEOUT_WRITE,
-        )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError:
-        return None
-
-
-def get_processing_status() -> dict | None:
-    """Get current processing status."""
-    try:
-        response = httpx.get(f"{API_URL}/process/status", timeout=API_TIMEOUT_READ)
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPError:
-        return None
-
-
 def download_coco_json(image_id: str, mode: SegmentationMode | None = None) -> dict | None:
     """Download COCO JSON for an image."""
     try:

@@ -62,6 +62,34 @@ uvx ruff format packages/
 uvx bandit -c pyproject.toml -r .
 ```
 
+### Dead Code Detection
+
+```bash
+# Find unused code in backend
+uvx vulture packages/samui-backend/src/
+
+# Find unused code in frontend
+uvx vulture packages/samui-frontend/src/
+
+# Check both packages
+uvx vulture packages/samui-backend/src/ packages/samui-frontend/src/
+
+# Higher confidence threshold (default 60%)
+uvx vulture packages/samui-backend/src/ --min-confidence 80
+```
+
+**Finding code only used in tests:** Run vulture on source only, then on source + tests. Code appearing in the first output but not the second is only referenced by tests.
+
+```bash
+# Source only - shows all potentially unused code
+uvx vulture packages/samui-backend/src/ packages/samui-frontend/src/
+
+# Source + tests - unused code here is truly dead
+uvx vulture packages/samui-backend/src/ packages/samui-frontend/src/ tests/
+```
+
+**Note:** Vulture may report false positives for Pydantic models, SQLAlchemy columns, and FastAPI dependencies since they're used implicitly by frameworks.
+
 ### Adding Dependencies
 
 ```bash

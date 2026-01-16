@@ -17,10 +17,3 @@ class PromptType(StrEnum):
     SEGMENT = "segment"
     POSITIVE_EXEMPLAR = "positive_exemplar"
     NEGATIVE_EXEMPLAR = "negative_exemplar"
-
-
-class AnnotationSource(StrEnum):
-    """Source of an annotation."""
-
-    USER = "user"
-    MODEL = "model"

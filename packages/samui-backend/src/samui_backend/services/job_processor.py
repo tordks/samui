@@ -29,16 +29,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_latest_result(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -> ProcessingResult | None:
-    """Get the most recent processing result for an image and mode."""
-    return (
-        db.query(ProcessingResult)
-        .filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode)
-        .order_by(desc(ProcessingResult.processed_at))
-        .first()
-    )
-
-
 def get_annotations_for_mode(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -> list[BboxAnnotation]:
     """Get bbox annotations relevant to the given segmentation mode."""
     if mode == SegmentationMode.INSIDE_BOX:
