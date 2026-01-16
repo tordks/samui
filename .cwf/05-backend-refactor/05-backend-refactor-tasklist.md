@@ -98,30 +98,30 @@
 
 **Goal:** Extract batched API helpers from sam3_inference.py for find-all mode.
 
-**Deliverable:** Working `sam3_batched.py` with sam3_inference.py focused on core inference.
+**Deliverable:** Working `sam3_batched_api.py` with sam3_inference.py focused on core inference.
 
 **Tasks:**
 
-- [ ] [P4.1] Create `services/sam3_batched.py` with methods extracted from `SAM3Service`:
+- [x] [P4.1] Create `services/sam3_batched_api.py` with methods extracted from `SAM3Service`:
   - `create_transforms()` (lines 180-199)
   - `create_postprocessor(detection_threshold)` (lines 201-220)
   - `create_datapoint(image, text_prompt, exemplar_boxes)` (lines 222-288)
   - `normalize_mask_output(masks_data, height, width)` (lines 290-319)
   - `boxes_xyxy_to_xywh(boxes_tensor)` (lines 321-326)
   - Move `DEFAULT_VISUAL_QUERY` constant
-- [ ] [P4.2] Update `services/__init__.py` to export sam3_batched functions
-- [ ] [P4.3] Update `sam3_inference.py` to import from `sam3_batched`
+- [x] [P4.2] Update `services/__init__.py` to export sam3_batched_api functions
+- [x] [P4.3] Update `sam3_inference.py` to import from `sam3_batched_api`
   - Remove method definitions from SAM3Service class
   - Update `process_image_find_all` to use imported functions
-- [ ] [P4.4] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P4.4] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
-- [ ] Code quality: Run `uvx ruff format packages/samui-backend/`
-- [ ] Review: Verify sam3_inference.py is now ~280 lines focused on model and inference
+- [x] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
+- [x] Code quality: Run `uvx ruff format packages/samui-backend/`
+- [x] Review: Verify sam3_inference.py is now ~280 lines focused on model and inference
 
-**Phase 4 Complete:** SAM3 batched helpers extracted. sam3_inference.py at target size (~280 lines).
+**Phase 4 Complete:** SAM3 batched API helpers extracted. sam3_inference.py at target size (267 lines).
 
 ---
 

@@ -19,16 +19,30 @@ from samui_backend.services.mode_processors import (
     save_coco_to_storage,
     save_mask_to_storage,
 )
+from samui_backend.services.sam3_batched_api import (
+    DEFAULT_VISUAL_QUERY,
+    boxes_xyxy_to_xywh,
+    create_datapoint,
+    create_postprocessor,
+    create_transforms,
+    normalize_mask_output,
+)
 from samui_backend.services.sam3_inference import SAM3Service
 from samui_backend.services.storage import StorageService
 
 __all__ = [
+    "DEFAULT_VISUAL_QUERY",
     "SAM3Service",
     "StorageService",
+    "boxes_xyxy_to_xywh",
     "build_annotations_snapshot",
     "cleanup_stale_jobs",
+    "create_datapoint",
+    "create_postprocessor",
+    "create_transforms",
     "filter_images_needing_processing",
     "generate_coco_json",
+    "normalize_mask_output",
     "process_find_all",
     "process_inside_box",
     "process_job",
