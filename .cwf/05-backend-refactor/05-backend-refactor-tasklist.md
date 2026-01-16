@@ -33,32 +33,32 @@
 
 ---
 
-## Phase 2: Extract Snapshot Manager
+## Phase 2: Extract Annotation Snapshots Module
 
 **Goal:** Extract annotation snapshot logic from job_processor into dedicated module.
 
-**Deliverable:** Working `snapshot_manager.py` with job_processor updated to import from it.
+**Deliverable:** Working `annotation_snapshots.py` with job_processor updated to import from it.
 
 **Tasks:**
 
-- [ ] [P2.1] Create `services/snapshot_manager.py` with functions extracted from `job_processor.py`:
+- [x] [P2.1] Create `services/annotation_snapshots.py` with functions extracted from `job_processor.py`:
   - `get_annotations_for_mode(db, image_id, mode)` (lines 32-52)
   - `get_point_annotations_for_image(db, image_id)` (lines 55-57)
   - `build_annotations_snapshot(db, image, mode)` (lines 60-94)
   - `_get_snapshot_annotation_ids(snapshot, mode)` (lines 97-102)
   - `_check_image_needs_processing(...)` (lines 105-138)
   - `filter_images_needing_processing(db, snapshots, mode)` (lines 141-173)
-- [ ] [P2.2] Update `services/__init__.py` to export snapshot_manager functions
-- [ ] [P2.3] Update `job_processor.py` to import from `snapshot_manager`
+- [x] [P2.2] Update `services/__init__.py` to export annotation_snapshots functions
+- [x] [P2.3] Update `job_processor.py` to import from `annotation_snapshots`
   - Remove duplicated function definitions
   - Update all call sites to use imported functions
-- [ ] [P2.4] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P2.4] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
-- [ ] Code quality: Run `uvx ruff format packages/samui-backend/`
-- [ ] Review: Verify job_processor.py no longer contains snapshot logic, imports work correctly
+- [x] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
+- [x] Code quality: Run `uvx ruff format packages/samui-backend/`
+- [x] Review: Verify job_processor.py no longer contains snapshot logic, imports work correctly
 
 **Phase 2 Complete:** Snapshot management extracted. job_processor.py reduced by ~140 lines.
 

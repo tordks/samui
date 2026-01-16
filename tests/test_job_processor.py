@@ -5,9 +5,9 @@ from datetime import UTC, datetime
 
 from samui_backend.db.models import BboxAnnotation, Image, PointAnnotation, ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, PromptType, SegmentationMode
-from samui_backend.services.job_processor import (
+from samui_backend.services.job_processor import cleanup_stale_jobs
+from samui_backend.services.annotation_snapshots import (
     build_annotations_snapshot,
-    cleanup_stale_jobs,
     filter_images_needing_processing,
     get_point_annotations_for_image,
 )

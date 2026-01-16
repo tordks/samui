@@ -77,7 +77,7 @@ packages/samui-backend/src/samui_backend/
 │   ├── coco_export.py
 │   ├── job_processor.py [MODIFY]
 │   ├── mode_processors.py [CREATE]
-│   ├── snapshot_manager.py [CREATE]
+│   ├── annotation_snapshots.py [CREATE]
 │   ├── sam3_inference.py [MODIFY]
 │   ├── sam3_batched.py [CREATE]
 │   └── storage.py
@@ -87,7 +87,7 @@ packages/samui-backend/src/samui_backend/
 
 **Component Relationships:**
 
-- `job_processor.py` imports from `mode_processors.py` and `snapshot_manager.py`
+- `job_processor.py` imports from `mode_processors.py` and `annotation_snapshots.py`
 - `mode_processors.py` imports from `sam3_inference.py` and `storage.py`
 - `sam3_inference.py` imports from `sam3_batched.py` for find-all mode
 - Route files import from `db/helpers.py` for common queries
@@ -157,7 +157,7 @@ History endpoint change:
 | `job_processor.py` | 528 | ~300 | ~43% |
 | `sam3_inference.py` | 416 | ~280 | ~33% |
 | `mode_processors.py` | - | ~150 | new |
-| `snapshot_manager.py` | - | ~100 | new |
+| `annotation_snapshots.py` | - | ~100 | new |
 | `sam3_batched.py` | - | ~140 | new |
 | `db/helpers.py` | - | ~50 | new |
 
