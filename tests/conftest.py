@@ -21,7 +21,6 @@ from samui_backend.routes.images import get_storage_service as get_storage_servi
 from samui_backend.routes.jobs import get_storage_service as get_storage_service_jobs
 from samui_backend.routes.processing import get_storage_service as get_storage_service_processing
 
-
 # Create test database engine (in-memory SQLite)
 test_engine = create_engine(
     "sqlite://",
@@ -56,6 +55,7 @@ def mock_storage() -> MagicMock:
 @pytest.fixture
 def client(db_session: Session, mock_storage: MagicMock) -> Generator[TestClient, None, None]:
     """Create a test client with mocked dependencies."""
+
     def override_get_db() -> Generator[Session, None, None]:
         yield db_session
 

@@ -3,7 +3,6 @@
 import uuid
 
 import numpy as np
-import pytest
 
 
 class TestMaskToRLE:

@@ -6,10 +6,10 @@ from datetime import UTC, datetime
 from samui_backend.db.models import BboxAnnotation, Image, PointAnnotation, ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, PromptType, SegmentationMode
 from samui_backend.services.job_processor import (
+    build_annotations_snapshot,
     cleanup_stale_jobs,
-    get_images_needing_processing,
+    filter_images_needing_processing,
     get_point_annotations_for_image,
-    needs_processing,
 )
 from sqlalchemy.orm import Session
 
@@ -52,6 +52,7 @@ def create_test_job(
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
     status: JobStatus = JobStatus.QUEUED,
     filenames: list[str] | None = None,
+    annotations_snapshot: dict | None = None,
 ) -> ProcessingJob:
     """Create a test processing job."""
     job = ProcessingJob(
@@ -59,6 +60,7 @@ def create_test_job(
         status=status,
         image_ids=[str(img_id) for img_id in image_ids],
         image_filenames=filenames or [f"test_{i}.png" for i in range(len(image_ids))],
+        annotations_snapshot=annotations_snapshot,
     )
     db.add(job)
     db.commit()
@@ -70,8 +72,6 @@ def create_test_result(
     job_id: uuid.UUID,
     image_id: uuid.UUID,
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
-    annotation_ids: list[str] | None = None,
-    text_prompt_used: str | None = None,
 ) -> ProcessingResult:
     """Create a test processing result."""
     result = ProcessingResult(
@@ -80,168 +80,228 @@ def create_test_result(
         mode=mode,
         mask_blob_path=f"masks/{uuid.uuid4()}.png",
         coco_json_blob_path=f"coco/{uuid.uuid4()}.json",
-        annotation_ids=annotation_ids,
-        text_prompt_used=text_prompt_used,
     )
     db.add(result)
     db.commit()
     return result
 
 
-class TestNeedsProcessing:
-    """Tests for needs_processing function."""
+def make_bbox_snapshot(ann: BboxAnnotation) -> dict:
+    """Create a snapshot dict from a BboxAnnotation."""
+    return {
+        "id": str(ann.id),
+        "bbox_x": ann.bbox_x,
+        "bbox_y": ann.bbox_y,
+        "bbox_width": ann.bbox_width,
+        "bbox_height": ann.bbox_height,
+        "prompt_type": ann.prompt_type.value,
+    }
 
-    def test_no_image_returns_false(self, db_session: Session) -> None:
-        """Non-existent image returns False."""
-        result = needs_processing(db_session, uuid.uuid4(), SegmentationMode.INSIDE_BOX)
-        assert result is False
 
-    def test_no_annotations_no_result_returns_false(self, db_session: Session) -> None:
-        """Image with no annotations and no previous result returns False."""
+def make_point_snapshot(ann: PointAnnotation) -> dict:
+    """Create a snapshot dict from a PointAnnotation."""
+    return {
+        "id": str(ann.id),
+        "point_x": ann.point_x,
+        "point_y": ann.point_y,
+        "is_positive": ann.is_positive,
+    }
+
+
+class TestFilterImagesNeedingProcessing:
+    """Tests for filter_images_needing_processing function."""
+
+    def test_no_annotations_no_job_returns_empty(self, db_session: Session) -> None:
+        """Image with no annotations and no previous job is not included."""
         image = create_test_image(db_session)
-        result = needs_processing(db_session, image.id, SegmentationMode.INSIDE_BOX)
-        assert result is False
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.INSIDE_BOX)
 
-    def test_has_annotations_no_result_returns_true(self, db_session: Session) -> None:
-        """Image with annotations but no previous result returns True."""
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.INSIDE_BOX)
+        assert image.id not in result
+
+    def test_has_annotations_no_job_returns_image(self, db_session: Session) -> None:
+        """Image with annotations but no previous job is included."""
         image = create_test_image(db_session)
         create_test_annotation(db_session, image.id)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.INSIDE_BOX)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.INSIDE_BOX)
-        assert result is True
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.INSIDE_BOX)
+        assert image.id in result
 
-    def test_find_all_text_prompt_only_returns_true(self, db_session: Session) -> None:
-        """Find-all mode with text prompt but no exemplars returns True."""
+    def test_find_all_text_prompt_only_returns_image(self, db_session: Session) -> None:
+        """Find-all mode with text prompt but no exemplars includes image."""
         image = create_test_image(db_session)
         image.text_prompt = "find all cats"
         db_session.commit()
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.FIND_ALL)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.FIND_ALL)
-        assert result is True
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.FIND_ALL)
+        assert image.id in result
 
-    def test_annotations_unchanged_returns_false(self, db_session: Session) -> None:
-        """Same annotation set as previous result returns False."""
+    def test_annotations_unchanged_returns_empty(self, db_session: Session) -> None:
+        """Same annotation set as previous job excludes image."""
         image = create_test_image(db_session)
         ann = create_test_annotation(db_session, image.id)
-        job = create_test_job(db_session, [image.id])
-        create_test_result(db_session, job.id, image.id, annotation_ids=[str(ann.id)])
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": None,
+                "bbox_annotations": [make_bbox_snapshot(ann)],
+                "point_annotations": [],
+            }
+        }
+        create_test_job(db_session, [image.id], annotations_snapshot=job_snapshot)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.INSIDE_BOX)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.INSIDE_BOX)
-        assert result is False
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.INSIDE_BOX)
+        assert image.id not in result
 
-    def test_annotation_added_returns_true(self, db_session: Session) -> None:
-        """New annotation added since last result returns True."""
+    def test_annotation_added_returns_image(self, db_session: Session) -> None:
+        """New annotation added since last job includes image."""
         image = create_test_image(db_session)
         ann1 = create_test_annotation(db_session, image.id)
-        job = create_test_job(db_session, [image.id])
-        create_test_result(db_session, job.id, image.id, annotation_ids=[str(ann1.id)])
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": None,
+                "bbox_annotations": [make_bbox_snapshot(ann1)],
+                "point_annotations": [],
+            }
+        }
+        create_test_job(db_session, [image.id], annotations_snapshot=job_snapshot)
 
         # Add another annotation
         create_test_annotation(db_session, image.id)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.INSIDE_BOX)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.INSIDE_BOX)
-        assert result is True
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.INSIDE_BOX)
+        assert image.id in result
 
-    def test_annotation_deleted_returns_true(self, db_session: Session) -> None:
-        """Annotation deleted since last result returns True."""
+    def test_annotation_deleted_returns_image(self, db_session: Session) -> None:
+        """Annotation deleted since last job includes image."""
         image = create_test_image(db_session)
         ann1 = create_test_annotation(db_session, image.id)
         ann2 = create_test_annotation(db_session, image.id)
-        job = create_test_job(db_session, [image.id])
-        create_test_result(db_session, job.id, image.id, annotation_ids=[str(ann1.id), str(ann2.id)])
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": None,
+                "bbox_annotations": [make_bbox_snapshot(ann1), make_bbox_snapshot(ann2)],
+                "point_annotations": [],
+            }
+        }
+        create_test_job(db_session, [image.id], annotations_snapshot=job_snapshot)
 
         # Delete one annotation
         db_session.delete(ann2)
         db_session.commit()
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.INSIDE_BOX)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.INSIDE_BOX)
-        assert result is True
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.INSIDE_BOX)
+        assert image.id in result
 
-    def test_text_prompt_changed_returns_true(self, db_session: Session) -> None:
-        """Changed text prompt in find-all mode returns True."""
+    def test_text_prompt_changed_returns_image(self, db_session: Session) -> None:
+        """Changed text prompt in find-all mode includes image."""
         image = create_test_image(db_session)
         image.text_prompt = "find all dogs"
         db_session.commit()
 
-        job = create_test_job(db_session, [image.id], mode=SegmentationMode.FIND_ALL)
-        create_test_result(
-            db_session,
-            job.id,
-            image.id,
-            mode=SegmentationMode.FIND_ALL,
-            text_prompt_used="find all cats",
-        )
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": "find all cats",  # Different from current
+                "bbox_annotations": [],
+                "point_annotations": [],
+            }
+        }
+        create_test_job(db_session, [image.id], mode=SegmentationMode.FIND_ALL, annotations_snapshot=job_snapshot)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.FIND_ALL)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.FIND_ALL)
-        assert result is True
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.FIND_ALL)
+        assert image.id in result
 
-    def test_text_prompt_unchanged_returns_false(self, db_session: Session) -> None:
-        """Same text prompt in find-all mode returns False."""
+    def test_text_prompt_unchanged_returns_empty(self, db_session: Session) -> None:
+        """Same text prompt in find-all mode excludes image."""
         image = create_test_image(db_session)
         image.text_prompt = "find all cats"
         db_session.commit()
 
-        job = create_test_job(db_session, [image.id], mode=SegmentationMode.FIND_ALL)
-        create_test_result(
-            db_session,
-            job.id,
-            image.id,
-            mode=SegmentationMode.FIND_ALL,
-            text_prompt_used="find all cats",
-        )
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": "find all cats",  # Same as current
+                "bbox_annotations": [],
+                "point_annotations": [],
+            }
+        }
+        create_test_job(db_session, [image.id], mode=SegmentationMode.FIND_ALL, annotations_snapshot=job_snapshot)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.FIND_ALL)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.FIND_ALL)
-        assert result is False
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.FIND_ALL)
+        assert image.id not in result
 
     def test_inside_box_ignores_exemplar_annotations(self, db_session: Session) -> None:
         """Inside-box mode ignores exemplar annotations."""
         image = create_test_image(db_session)
         # Add exemplar annotation (should be ignored in inside-box mode)
         create_test_annotation(db_session, image.id, prompt_type=PromptType.POSITIVE_EXEMPLAR)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.INSIDE_BOX)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.INSIDE_BOX)
-        assert result is False  # No SEGMENT annotations
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.INSIDE_BOX)
+        assert image.id not in result  # No SEGMENT annotations
 
     def test_find_all_ignores_segment_annotations(self, db_session: Session) -> None:
         """Find-all mode ignores segment annotations."""
         image = create_test_image(db_session)
         # Add segment annotation (should be ignored in find-all mode)
         create_test_annotation(db_session, image.id, prompt_type=PromptType.SEGMENT)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.FIND_ALL)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.FIND_ALL)
-        assert result is False  # No exemplars and no text prompt
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.FIND_ALL)
+        assert image.id not in result  # No exemplars and no text prompt
 
+    def test_pending_job_with_same_annotations_returns_empty(self, db_session: Session) -> None:
+        """Image not included when a pending job already has the same annotations."""
+        image = create_test_image(db_session)
+        ann = create_test_annotation(db_session, image.id)
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": None,
+                "bbox_annotations": [make_bbox_snapshot(ann)],
+                "point_annotations": [],
+            }
+        }
+        # Job is QUEUED (pending), not completed
+        create_test_job(db_session, [image.id], status=JobStatus.QUEUED, annotations_snapshot=job_snapshot)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.INSIDE_BOX)
 
-class TestGetImagesNeedingProcessing:
-    """Tests for get_images_needing_processing function."""
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.INSIDE_BOX)
+        assert image.id not in result  # Already queued with same annotations
 
-    def test_filters_images_needing_processing(self, db_session: Session) -> None:
-        """Returns only images that need processing."""
-        # Image 1: needs processing (has annotation, no result)
+    def test_filters_multiple_images(self, db_session: Session) -> None:
+        """Correctly filters multiple images in a single call."""
+        # Image 1: needs processing (has annotation, no job)
         img1 = create_test_image(db_session, "test1.jpg")
         create_test_annotation(db_session, img1.id)
 
-        # Image 2: doesn't need processing (has result with same annotations)
+        # Image 2: doesn't need processing (has job with same annotations)
         img2 = create_test_image(db_session, "test2.jpg")
         ann2 = create_test_annotation(db_session, img2.id)
-        job = create_test_job(db_session, [img2.id])
-        create_test_result(db_session, job.id, img2.id, annotation_ids=[str(ann2.id)])
+        job_snapshot = {
+            str(img2.id): {
+                "text_prompt": None,
+                "bbox_annotations": [make_bbox_snapshot(ann2)],
+                "point_annotations": [],
+            }
+        }
+        create_test_job(db_session, [img2.id], annotations_snapshot=job_snapshot)
 
         # Image 3: doesn't need processing (no annotations)
         img3 = create_test_image(db_session, "test3.jpg")
 
-        result = get_images_needing_processing(
-            db_session,
-            [img1.id, img2.id, img3.id],
-            SegmentationMode.INSIDE_BOX,
-        )
+        snapshots = {
+            img1.id: build_annotations_snapshot(db_session, img1, SegmentationMode.INSIDE_BOX),
+            img2.id: build_annotations_snapshot(db_session, img2, SegmentationMode.INSIDE_BOX),
+            img3.id: build_annotations_snapshot(db_session, img3, SegmentationMode.INSIDE_BOX),
+        }
 
+        result = filter_images_needing_processing(db_session, snapshots, SegmentationMode.INSIDE_BOX)
         assert result == [img1.id]
-
-    def test_empty_list_returns_empty(self, db_session: Session) -> None:
-        """Empty input returns empty list."""
-        result = get_images_needing_processing(db_session, [], SegmentationMode.INSIDE_BOX)
-        assert result == []
 
 
 class TestCleanupStaleJobs:
@@ -358,85 +418,101 @@ class TestGetPointAnnotationsForImage:
         assert result[0].id == ann1.id
 
 
-class TestNeedsProcessingPointMode:
-    """Tests for needs_processing function with POINT mode."""
+class TestFilterImagesNeedingProcessingPointMode:
+    """Tests for filter_images_needing_processing function with POINT mode."""
 
-    def test_point_mode_no_points_no_result_returns_false(self, db_session: Session) -> None:
-        """POINT mode with no point annotations and no previous result returns False."""
+    def test_point_mode_no_points_no_job_returns_empty(self, db_session: Session) -> None:
+        """POINT mode with no point annotations and no previous job excludes image."""
         image = create_test_image(db_session)
-        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
-        assert result is False
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.POINT)
 
-    def test_point_mode_has_points_no_result_returns_true(self, db_session: Session) -> None:
-        """POINT mode with point annotations but no previous result returns True."""
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.POINT)
+        assert image.id not in result
+
+    def test_point_mode_has_points_no_job_returns_image(self, db_session: Session) -> None:
+        """POINT mode with point annotations but no previous job includes image."""
         image = create_test_image(db_session)
         create_test_point_annotation(db_session, image.id)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.POINT)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
-        assert result is True
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.POINT)
+        assert image.id in result
 
-    def test_point_mode_points_unchanged_returns_false(self, db_session: Session) -> None:
-        """POINT mode with same point annotations as previous result returns False."""
+    def test_point_mode_points_unchanged_returns_empty(self, db_session: Session) -> None:
+        """POINT mode with same point annotations as previous job excludes image."""
         image = create_test_image(db_session)
         ann = create_test_point_annotation(db_session, image.id)
-        job = create_test_job(db_session, [image.id], mode=SegmentationMode.POINT)
-        create_test_result(
-            db_session, job.id, image.id, mode=SegmentationMode.POINT, annotation_ids=[str(ann.id)]
-        )
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": None,
+                "bbox_annotations": [],
+                "point_annotations": [make_point_snapshot(ann)],
+            }
+        }
+        create_test_job(db_session, [image.id], mode=SegmentationMode.POINT, annotations_snapshot=job_snapshot)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.POINT)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
-        assert result is False
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.POINT)
+        assert image.id not in result
 
-    def test_point_mode_point_added_returns_true(self, db_session: Session) -> None:
-        """POINT mode with new point annotation added since last result returns True."""
+    def test_point_mode_point_added_returns_image(self, db_session: Session) -> None:
+        """POINT mode with new point annotation added since last job includes image."""
         image = create_test_image(db_session)
         ann1 = create_test_point_annotation(db_session, image.id, point_x=25, point_y=25)
-        job = create_test_job(db_session, [image.id], mode=SegmentationMode.POINT)
-        create_test_result(
-            db_session, job.id, image.id, mode=SegmentationMode.POINT, annotation_ids=[str(ann1.id)]
-        )
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": None,
+                "bbox_annotations": [],
+                "point_annotations": [make_point_snapshot(ann1)],
+            }
+        }
+        create_test_job(db_session, [image.id], mode=SegmentationMode.POINT, annotations_snapshot=job_snapshot)
 
         # Add another point annotation
         create_test_point_annotation(db_session, image.id, point_x=75, point_y=75)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.POINT)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
-        assert result is True
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.POINT)
+        assert image.id in result
 
-    def test_point_mode_point_deleted_returns_true(self, db_session: Session) -> None:
-        """POINT mode with point annotation deleted since last result returns True."""
+    def test_point_mode_point_deleted_returns_image(self, db_session: Session) -> None:
+        """POINT mode with point annotation deleted since last job includes image."""
         image = create_test_image(db_session)
         ann1 = create_test_point_annotation(db_session, image.id, point_x=25, point_y=25)
         ann2 = create_test_point_annotation(db_session, image.id, point_x=75, point_y=75)
-        job = create_test_job(db_session, [image.id], mode=SegmentationMode.POINT)
-        create_test_result(
-            db_session,
-            job.id,
-            image.id,
-            mode=SegmentationMode.POINT,
-            annotation_ids=[str(ann1.id), str(ann2.id)],
-        )
+        job_snapshot = {
+            str(image.id): {
+                "text_prompt": None,
+                "bbox_annotations": [],
+                "point_annotations": [make_point_snapshot(ann1), make_point_snapshot(ann2)],
+            }
+        }
+        create_test_job(db_session, [image.id], mode=SegmentationMode.POINT, annotations_snapshot=job_snapshot)
 
         # Delete one point annotation
         db_session.delete(ann2)
         db_session.commit()
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.POINT)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
-        assert result is True
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.POINT)
+        assert image.id in result
 
     def test_point_mode_ignores_bbox_annotations(self, db_session: Session) -> None:
         """POINT mode ignores bbox annotations."""
         image = create_test_image(db_session)
         # Add bbox annotation (should be ignored in point mode)
         create_test_annotation(db_session, image.id, prompt_type=PromptType.SEGMENT)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.POINT)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.POINT)
-        assert result is False  # No point annotations
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.POINT)
+        assert image.id not in result  # No point annotations
 
     def test_inside_box_mode_ignores_point_annotations(self, db_session: Session) -> None:
         """Inside-box mode ignores point annotations."""
         image = create_test_image(db_session)
         # Add point annotation (should be ignored in inside-box mode)
         create_test_point_annotation(db_session, image.id)
+        snapshot = build_annotations_snapshot(db_session, image, SegmentationMode.INSIDE_BOX)
 
-        result = needs_processing(db_session, image.id, SegmentationMode.INSIDE_BOX)
-        assert result is False  # No bbox annotations
+        result = filter_images_needing_processing(db_session, {image.id: snapshot}, SegmentationMode.INSIDE_BOX)
+        assert image.id not in result  # No bbox annotations

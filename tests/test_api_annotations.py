@@ -87,9 +87,7 @@ class TestCreateAnnotation:
         assert response.status_code == 400
         assert "positive" in response.json()["detail"].lower()
 
-    def test_create_annotation_invalid_bbox_zero_dimensions(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_annotation_invalid_bbox_zero_dimensions(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test annotation creation with zero bbox dimensions."""
         image_id = upload_test_image(client)
 
@@ -126,9 +124,7 @@ class TestCreateAnnotation:
         assert response.status_code == 400
         assert "non-negative" in response.json()["detail"].lower()
 
-    def test_create_annotation_bbox_exceeds_image_width(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_annotation_bbox_exceeds_image_width(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test annotation creation with bbox exceeding image width."""
         image_id = upload_test_image(client)
 
@@ -146,9 +142,7 @@ class TestCreateAnnotation:
         assert response.status_code == 400
         assert "exceeds" in response.json()["detail"].lower()
 
-    def test_create_annotation_bbox_exceeds_image_height(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_annotation_bbox_exceeds_image_height(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test annotation creation with bbox exceeding image height."""
         image_id = upload_test_image(client)
 
@@ -166,9 +160,7 @@ class TestCreateAnnotation:
         assert response.status_code == 400
         assert "exceeds" in response.json()["detail"].lower()
 
-    def test_create_multiple_annotations_same_image(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_multiple_annotations_same_image(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test creating multiple annotations for the same image."""
         image_id = upload_test_image(client)
 
@@ -228,9 +220,7 @@ class TestGetAnnotations:
         assert len(data["annotations"]) == 1
         assert data["annotations"][0]["bbox_x"] == 10
 
-    def test_get_annotations_empty_list(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_get_annotations_empty_list(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test getting annotations when none exist."""
         image_id = upload_test_image(client)
 
@@ -251,9 +241,7 @@ class TestGetAnnotations:
 class TestDeleteAnnotation:
     """Tests for DELETE /annotations/{id} endpoint."""
 
-    def test_delete_annotation_success(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_delete_annotation_success(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test deleting an annotation."""
         image_id = upload_test_image(client)
 
@@ -289,9 +277,7 @@ class TestDeleteAnnotation:
 class TestAnnotationPromptType:
     """Tests for annotation prompt_type field."""
 
-    def test_create_annotation_default_prompt_type(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_annotation_default_prompt_type(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test that annotation defaults to SEGMENT prompt_type."""
         image_id = upload_test_image(client)
 
@@ -310,9 +296,7 @@ class TestAnnotationPromptType:
         data = response.json()
         assert data["prompt_type"] == "segment"
 
-    def test_create_annotation_with_positive_exemplar(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_annotation_with_positive_exemplar(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test creating annotation with positive_exemplar prompt_type."""
         image_id = upload_test_image(client)
 
@@ -332,9 +316,7 @@ class TestAnnotationPromptType:
         data = response.json()
         assert data["prompt_type"] == "positive_exemplar"
 
-    def test_create_annotation_with_negative_exemplar(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_annotation_with_negative_exemplar(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test creating annotation with negative_exemplar prompt_type."""
         image_id = upload_test_image(client)
 
@@ -354,9 +336,7 @@ class TestAnnotationPromptType:
         data = response.json()
         assert data["prompt_type"] == "negative_exemplar"
 
-    def test_get_annotations_filtered_by_prompt_type(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_get_annotations_filtered_by_prompt_type(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test filtering annotations by prompt_type."""
         image_id = upload_test_image(client)
 
@@ -412,18 +392,14 @@ class TestAnnotationPromptType:
 class TestImageTextPrompt:
     """Tests for image text_prompt field."""
 
-    def test_image_text_prompt_default_none(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_image_text_prompt_default_none(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test that image text_prompt defaults to None."""
         image_id = upload_test_image(client)
 
         response = client.get(f"/images/{image_id}")
         assert response.json()["text_prompt"] is None
 
-    def test_update_image_text_prompt(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_update_image_text_prompt(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test updating image text_prompt via PATCH."""
         image_id = upload_test_image(client)
 
@@ -447,5 +423,3 @@ class TestImageTextPrompt:
         )
 
         assert response.status_code == 404
-
-

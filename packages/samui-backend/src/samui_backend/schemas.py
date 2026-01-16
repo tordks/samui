@@ -137,9 +137,35 @@ class ProcessingResultResponse(BaseModel):
     mask_blob_path: str
     coco_json_blob_path: str
     processed_at: datetime
-    annotation_ids: list[str] | None = None
-    text_prompt_used: str | None = None
     bboxes: list[dict] | None = None
+
+
+class BboxAnnotationSnapshot(BaseModel):
+    """Snapshot of a bbox annotation for job processing."""
+
+    id: uuid.UUID
+    bbox_x: int
+    bbox_y: int
+    bbox_width: int
+    bbox_height: int
+    prompt_type: PromptType
+
+
+class PointAnnotationSnapshot(BaseModel):
+    """Snapshot of a point annotation for job processing."""
+
+    id: uuid.UUID
+    point_x: int
+    point_y: int
+    is_positive: bool
+
+
+class AnnotationsSnapshot(BaseModel):
+    """Snapshot of an image's annotations at job submission time."""
+
+    text_prompt: str | None = None
+    bbox_annotations: list[BboxAnnotationSnapshot] = []
+    point_annotations: list[PointAnnotationSnapshot] = []
 
 
 class ProcessingJobCreate(BaseModel):
@@ -203,6 +229,5 @@ class ProcessingHistoryResponse(BaseModel):
     image_id: uuid.UUID
     mode: SegmentationMode
     processed_at: datetime
-    text_prompt_used: str | None = None
     bboxes: list[dict] | None = None
     mask_blob_path: str

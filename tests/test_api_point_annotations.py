@@ -99,9 +99,7 @@ class TestCreatePointAnnotation:
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
 
-    def test_create_point_annotation_negative_coordinates(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_point_annotation_negative_coordinates(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test point annotation creation with negative coordinates."""
         image_id = upload_test_image(client)
 
@@ -152,9 +150,7 @@ class TestCreatePointAnnotation:
         assert response.status_code == 400
         assert "exceeds" in response.json()["detail"].lower()
 
-    def test_create_multiple_point_annotations_same_image(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_create_multiple_point_annotations_same_image(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test creating multiple point annotations for the same image."""
         image_id = upload_test_image(client)
 
@@ -268,9 +264,7 @@ class TestDeletePointAnnotation:
 class TestPointAnnotationsIsolation:
     """Tests for isolation between bbox and point annotations."""
 
-    def test_bbox_and_point_annotations_are_separate(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_bbox_and_point_annotations_are_separate(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test that bbox annotations don't appear in point annotation list and vice versa."""
         image_id = upload_test_image(client)
 

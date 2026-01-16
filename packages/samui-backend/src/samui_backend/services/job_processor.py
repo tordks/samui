@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from samui_backend.db.database import get_background_db
 from samui_backend.db.models import BboxAnnotation, Image, PointAnnotation, ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, PromptType, SegmentationMode
+from samui_backend.schemas import AnnotationsSnapshot, BboxAnnotationSnapshot, PointAnnotationSnapshot
 from samui_backend.services.coco_export import generate_coco_json
 from samui_backend.services.sam3_inference import SAM3Service
 from samui_backend.services.storage import StorageService
@@ -66,46 +67,120 @@ def get_point_annotations_for_image(db: Session, image_id: uuid.UUID) -> list[Po
     return db.query(PointAnnotation).filter(PointAnnotation.image_id == image_id).all()
 
 
-def needs_processing(db: Session, image_id: uuid.UUID, mode: SegmentationMode) -> bool:
-    """Derive processing need by comparing current annotations vs last result.
+def build_annotations_snapshot(db: Session, image: Image, mode: SegmentationMode) -> AnnotationsSnapshot:
+    """Build an annotations snapshot for an image based on the segmentation mode."""
+    bbox_snapshots: list[BboxAnnotationSnapshot] = []
+    point_snapshots: list[PointAnnotationSnapshot] = []
 
-    Returns True if:
-    - No previous result exists and there's something to process
-    - Annotation set has changed (additions or deletions)
-    - Text prompt has changed (find-all mode only)
-    """
-    image = db.get(Image, image_id)
-    if not image:
-        return False
-
-    # Get annotation IDs based on mode
     if mode == SegmentationMode.POINT:
-        point_annotations = get_point_annotations_for_image(db, image_id)
-        current_ids = {str(a.id) for a in point_annotations}
+        point_annotations = get_point_annotations_for_image(db, image.id)
+        point_snapshots = [
+            PointAnnotationSnapshot(
+                id=ann.id,
+                point_x=ann.point_x,
+                point_y=ann.point_y,
+                is_positive=ann.is_positive,
+            )
+            for ann in point_annotations
+        ]
     else:
-        annotations = get_annotations_for_mode(db, image_id, mode)
-        current_ids = {str(a.id) for a in annotations}
+        bbox_annotations = get_annotations_for_mode(db, image.id, mode)
+        bbox_snapshots = [
+            BboxAnnotationSnapshot(
+                id=ann.id,
+                bbox_x=ann.bbox_x,
+                bbox_y=ann.bbox_y,
+                bbox_width=ann.bbox_width,
+                bbox_height=ann.bbox_height,
+                prompt_type=ann.prompt_type,
+            )
+            for ann in bbox_annotations
+        ]
 
-    latest_result = get_latest_result(db, image_id, mode)
+    return AnnotationsSnapshot(
+        text_prompt=image.text_prompt,
+        bbox_annotations=bbox_snapshots,
+        point_annotations=point_snapshots,
+    )
 
-    # No previous result - process if there's something to process
-    if not latest_result:
+
+def _get_snapshot_annotation_ids(snapshot: AnnotationsSnapshot, mode: SegmentationMode) -> set[str]:
+    """Extract annotation IDs from a snapshot based on mode."""
+    if mode == SegmentationMode.POINT:
+        return {str(a.id) for a in snapshot.point_annotations}
+    else:
+        return {str(a.id) for a in snapshot.bbox_annotations}
+
+
+def _check_image_needs_processing(
+    image_id_str: str,
+    snapshot: AnnotationsSnapshot,
+    mode: SegmentationMode,
+    jobs: list[ProcessingJob],
+) -> bool:
+    """Check if a single image needs processing given pre-fetched jobs.
+    """
+    current_ids = _get_snapshot_annotation_ids(snapshot, mode)
+
+    # Find most recent job that includes this image
+    latest_job = next((job for job in jobs if image_id_str in job.image_ids), None)
+
+    # No previous job - process if there's something to process
+    if not latest_job:
         has_annotations = bool(current_ids)
-        has_find_all_prompt = mode == SegmentationMode.FIND_ALL and bool(image.text_prompt)
+        has_find_all_prompt = mode == SegmentationMode.FIND_ALL and bool(snapshot.text_prompt)
         return has_annotations or has_find_all_prompt
 
-    # Compare annotation sets (catches adds AND deletes)
-    processed_ids = set(latest_result.annotation_ids or [])
-    if current_ids != processed_ids:
+    # Compare current annotations against job's snapshot
+    job_snapshot = latest_job.annotations_snapshot or {}
+    last_snapshot_data = job_snapshot.get(image_id_str, {})
+
+    if mode == SegmentationMode.POINT:
+        last_ids = {str(a["id"]) for a in last_snapshot_data.get("point_annotations", [])}
+    else:
+        last_ids = {str(a["id"]) for a in last_snapshot_data.get("bbox_annotations", [])}
+
+    if current_ids != last_ids:
         return True
 
     # Check text_prompt changed (find-all mode)
-    return mode == SegmentationMode.FIND_ALL and image.text_prompt != latest_result.text_prompt_used
+    last_text_prompt = last_snapshot_data.get("text_prompt")
+    return mode == SegmentationMode.FIND_ALL and snapshot.text_prompt != last_text_prompt
 
 
-def get_images_needing_processing(db: Session, image_ids: list[uuid.UUID], mode: SegmentationMode) -> list[uuid.UUID]:
-    """Filter image_ids to those that need processing."""
-    return [img_id for img_id in image_ids if needs_processing(db, img_id, mode)]
+def filter_images_needing_processing(
+    db: Session,
+    snapshots: dict[uuid.UUID, AnnotationsSnapshot],
+    mode: SegmentationMode,
+) -> list[uuid.UUID]:
+    """Filter images to those needing processing (batch version).
+
+    Fetches jobs once and checks all images efficiently.
+
+    Args:
+        db: Database session.
+        snapshots: Dict mapping image_id to its annotation snapshot.
+        mode: Segmentation mode.
+
+    Returns:
+        List of image IDs that need processing.
+    """
+    if not snapshots:
+        return []
+
+    # Fetch all jobs for this mode once
+    jobs = (
+        db.query(ProcessingJob)
+        .filter(ProcessingJob.mode == mode)
+        .order_by(desc(ProcessingJob.created_at))
+        .all()
+    )
+
+    return [
+        image_id
+        for image_id, snapshot in snapshots.items()
+        if _check_image_needs_processing(str(image_id), snapshot, mode, jobs)
+    ]
 
 
 def _save_mask_to_storage(
@@ -162,7 +237,7 @@ def _process_inside_box(
     sam3: SAM3Service,
     image: Image,
     pil_image: PILImage.Image,
-    annotations: list[BboxAnnotation],
+    bbox_annotations: list[BboxAnnotationSnapshot],
     result: ProcessingResult,
 ) -> bool:
     """Process image with bounding box prompts (INSIDE_BOX mode).
@@ -170,11 +245,11 @@ def _process_inside_box(
     Returns:
         True if successful, False if no annotations to process.
     """
-    if not annotations:
+    if not bbox_annotations:
         logger.warning(f"No segment annotations for image {image.id}, skipping")
         return False
 
-    bboxes = [(ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height) for ann in annotations]
+    bboxes = [(ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height) for ann in bbox_annotations]
     masks = sam3.process_image(pil_image, bboxes)
 
     result.mask_blob_path = _save_mask_to_storage(storage, masks, result.id)
@@ -187,7 +262,8 @@ def _process_find_all(
     sam3: SAM3Service,
     image: Image,
     pil_image: PILImage.Image,
-    annotations: list[BboxAnnotation],
+    bbox_annotations: list[BboxAnnotationSnapshot],
+    text_prompt: str | None,
     result: ProcessingResult,
 ) -> bool:
     """Process image with text prompt and/or exemplar boxes (FIND_ALL mode).
@@ -195,21 +271,19 @@ def _process_find_all(
     Returns:
         True if successful, False if no text prompt or exemplars to process.
     """
-    text_prompt = image.text_prompt
-
-    if not text_prompt and not annotations:
+    if not text_prompt and not bbox_annotations:
         logger.warning(f"No text prompt or exemplars for image {image.id} in find-all mode, skipping")
         return False
 
     # Convert exemplar annotations to (bbox_xywh, is_positive) format
     exemplar_boxes = None
-    if annotations:
+    if bbox_annotations:
         exemplar_boxes = [
             (
                 (ann.bbox_x, ann.bbox_y, ann.bbox_width, ann.bbox_height),
                 ann.prompt_type == PromptType.POSITIVE_EXEMPLAR,
             )
-            for ann in annotations
+            for ann in bbox_annotations
         ]
 
     # Run find-all inference
@@ -239,7 +313,7 @@ def _process_point(
     sam3: SAM3Service,
     image: Image,
     pil_image: PILImage.Image,
-    point_annotations: list[PointAnnotation],
+    point_annotations: list[PointAnnotationSnapshot],
     result: ProcessingResult,
 ) -> bool:
     """Process image with point prompts (POINT mode).
@@ -276,24 +350,16 @@ def process_single_image(
     image: Image,
     job: ProcessingJob,
     mode: SegmentationMode,
+    snapshot: AnnotationsSnapshot,
 ) -> ProcessingResult | None:
     """Process a single image through SAM3 inference.
 
     Dispatches to mode-specific helper functions for the actual processing.
+    Uses the provided snapshot data instead of querying the database.
 
     Returns:
         ProcessingResult if successful, None otherwise.
     """
-    # Get annotations based on mode
-    if mode == SegmentationMode.POINT:
-        point_annotations = get_point_annotations_for_image(db, image.id)
-        annotation_ids = [str(a.id) for a in point_annotations]
-        bbox_annotations: list[BboxAnnotation] = []
-    else:
-        bbox_annotations = get_annotations_for_mode(db, image.id, mode)
-        annotation_ids = [str(a.id) for a in bbox_annotations]
-        point_annotations: list[PointAnnotation] = []
-
     # Load image data
     image_data = storage.get_image(image.blob_path)
     pil_image = PILImage.open(BytesIO(image_data)).convert("RGB")
@@ -303,8 +369,6 @@ def process_single_image(
         job_id=job.id,
         image_id=image.id,
         mode=mode,
-        annotation_ids=annotation_ids,
-        text_prompt_used=image.text_prompt if mode == SegmentationMode.FIND_ALL else None,
         bboxes=None,
         mask_blob_path="",  # Will be updated by helper
         coco_json_blob_path="",  # Will be updated by helper
@@ -312,13 +376,15 @@ def process_single_image(
     db.add(result)
     db.flush()  # Get the result.id
 
-    # Dispatch to mode-specific processing
+    # Dispatch to mode-specific processing using snapshot data
     if mode == SegmentationMode.INSIDE_BOX:
-        success = _process_inside_box(storage, sam3, image, pil_image, bbox_annotations, result)
+        success = _process_inside_box(storage, sam3, image, pil_image, snapshot.bbox_annotations, result)
     elif mode == SegmentationMode.FIND_ALL:
-        success = _process_find_all(storage, sam3, image, pil_image, bbox_annotations, result)
+        success = _process_find_all(
+            storage, sam3, image, pil_image, snapshot.bbox_annotations, snapshot.text_prompt, result
+        )
     elif mode == SegmentationMode.POINT:
-        success = _process_point(storage, sam3, image, pil_image, point_annotations, result)
+        success = _process_point(storage, sam3, image, pil_image, snapshot.point_annotations, result)
     else:
         logger.error(f"Unknown segmentation mode: {mode}")
         db.rollback()
@@ -360,6 +426,7 @@ def process_job(job_id: uuid.UUID) -> None:
 
             image_ids = [uuid.UUID(img_id) for img_id in job.image_ids]
             mode = job.mode
+            snapshots = job.annotations_snapshot or {}
 
             for idx, image_id in enumerate(image_ids):
                 job.current_index = idx
@@ -370,8 +437,20 @@ def process_job(job_id: uuid.UUID) -> None:
                     logger.warning(f"Image {image_id} not found, skipping")
                     continue
 
+                # Get snapshot for this image
+                snapshot_data = snapshots.get(str(image_id), {})
+                snapshot = AnnotationsSnapshot(
+                    text_prompt=snapshot_data.get("text_prompt"),
+                    bbox_annotations=[
+                        BboxAnnotationSnapshot(**ann) for ann in snapshot_data.get("bbox_annotations", [])
+                    ],
+                    point_annotations=[
+                        PointAnnotationSnapshot(**ann) for ann in snapshot_data.get("point_annotations", [])
+                    ],
+                )
+
                 try:
-                    process_single_image(db, storage, sam3, image, job, mode)
+                    process_single_image(db, storage, sam3, image, job, mode, snapshot)
                 except Exception as e:
                     logger.error(f"Error processing image {image_id}: {e}")
                     db.rollback()

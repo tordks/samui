@@ -2,9 +2,9 @@
 
 from samui_backend.services.coco_export import generate_coco_json
 from samui_backend.services.job_processor import (
+    build_annotations_snapshot,
     cleanup_stale_jobs,
-    get_images_needing_processing,
-    needs_processing,
+    filter_images_needing_processing,
     process_job,
     process_job_and_check_queue,
     process_single_image,
@@ -16,10 +16,10 @@ from samui_backend.services.storage import StorageService
 __all__ = [
     "SAM3Service",
     "StorageService",
+    "build_annotations_snapshot",
     "cleanup_stale_jobs",
+    "filter_images_needing_processing",
     "generate_coco_json",
-    "get_images_needing_processing",
-    "needs_processing",
     "process_job",
     "process_job_and_check_queue",
     "process_single_image",
