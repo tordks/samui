@@ -152,9 +152,9 @@ class TestSAM3ServiceFindAll:
         with pytest.raises(ValueError, match="requires text_prompt or exemplar_boxes"):
             service.process_image_find_all(image)
 
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_transforms")
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_postprocessor")
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_datapoint")
+    @patch("samui_backend.services.sam3_inference.create_transforms")
+    @patch("samui_backend.services.sam3_inference.create_postprocessor")
+    @patch("samui_backend.services.sam3_inference.create_datapoint")
     @patch("sam3.train.data.collator.collate_fn_api")
     @patch("sam3.model.utils.misc.copy_data_to_device")
     def test_process_image_find_all_with_text_prompt(
@@ -218,9 +218,9 @@ class TestSAM3ServiceFindAll:
         # Verify datapoint creation was called with text prompt
         mock_create_datapoint.assert_called_once_with(image, "cat", None)
 
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_transforms")
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_postprocessor")
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_datapoint")
+    @patch("samui_backend.services.sam3_inference.create_transforms")
+    @patch("samui_backend.services.sam3_inference.create_postprocessor")
+    @patch("samui_backend.services.sam3_inference.create_datapoint")
     @patch("sam3.train.data.collator.collate_fn_api")
     @patch("sam3.model.utils.misc.copy_data_to_device")
     def test_process_image_find_all_with_exemplar_boxes(
@@ -277,9 +277,9 @@ class TestSAM3ServiceFindAll:
         # Verify datapoint creation was called with exemplar boxes
         mock_create_datapoint.assert_called_once_with(image, None, exemplar_boxes)
 
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_transforms")
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_postprocessor")
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_datapoint")
+    @patch("samui_backend.services.sam3_inference.create_transforms")
+    @patch("samui_backend.services.sam3_inference.create_postprocessor")
+    @patch("samui_backend.services.sam3_inference.create_datapoint")
     @patch("sam3.train.data.collator.collate_fn_api")
     @patch("sam3.model.utils.misc.copy_data_to_device")
     def test_process_image_find_all_with_text_and_boxes(
@@ -344,9 +344,9 @@ class TestSAM3ServiceFindAll:
         # Verify datapoint creation was called with both text and boxes
         mock_create_datapoint.assert_called_once_with(image, "person", exemplar_boxes)
 
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_transforms")
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_postprocessor")
-    @patch("samui_backend.services.sam3_inference.SAM3Service._create_datapoint")
+    @patch("samui_backend.services.sam3_inference.create_transforms")
+    @patch("samui_backend.services.sam3_inference.create_postprocessor")
+    @patch("samui_backend.services.sam3_inference.create_datapoint")
     @patch("sam3.train.data.collator.collate_fn_api")
     @patch("sam3.model.utils.misc.copy_data_to_device")
     def test_process_image_find_all_returns_empty_when_no_detections(

@@ -10,11 +10,10 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
-from samui_backend.db.models import Image, ProcessingResult
+from samui_backend.db.helpers import get_image_or_404, get_latest_processing_result
 from samui_backend.dependencies import get_storage_service
 from samui_backend.enums import SegmentationMode
 from samui_backend.services.storage import StorageService
@@ -47,13 +46,7 @@ def get_mask(
     Raises:
         HTTPException: If image not found or not processed.
     """
-    # Get the latest result for this image and mode
-    result = (
-        db.query(ProcessingResult)
-        .filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode)
-        .order_by(desc(ProcessingResult.processed_at))
-        .first()
-    )
+    result = get_latest_processing_result(db, image_id, mode)
     if not result or not result.mask_blob_path:
         raise HTTPException(status_code=404, detail=f"Mask not found for this image with mode {mode.value}")
 
@@ -88,18 +81,9 @@ def export_coco_json(
     Raises:
         HTTPException: If image not found or not processed.
     """
-    # Get image
-    image = db.query(Image).filter(Image.id == image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    image = get_image_or_404(db, image_id)
 
-    # Get the latest result for this image and mode
-    result = (
-        db.query(ProcessingResult)
-        .filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode)
-        .order_by(desc(ProcessingResult.processed_at))
-        .first()
-    )
+    result = get_latest_processing_result(db, image_id, mode)
     if not result:
         raise HTTPException(status_code=404, detail=f"Image has not been processed yet with mode {mode.value}")
 

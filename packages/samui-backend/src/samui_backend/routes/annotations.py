@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
-from samui_backend.db.models import BboxAnnotation, Image, PointAnnotation
+from samui_backend.db.helpers import get_image_or_404
+from samui_backend.db.models import BboxAnnotation, PointAnnotation
 from samui_backend.enums import PromptType
 from samui_backend.schemas import (
     BboxAnnotationCreate,
@@ -26,10 +27,7 @@ def create_annotation(
     db: Session = Depends(get_db),
 ) -> BboxAnnotation:
     """Create a bounding box annotation for an image."""
-    # Verify image exists
-    image = db.query(Image).filter(Image.id == annotation.image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    image = get_image_or_404(db, annotation.image_id)
 
     # Validate bbox dimensions
     if annotation.bbox_width <= 0 or annotation.bbox_height <= 0:
@@ -67,10 +65,7 @@ def get_annotations(
     db: Session = Depends(get_db),
 ) -> dict:
     """Get all annotations for an image, optionally filtered by prompt_type."""
-    # Verify image exists
-    image = db.query(Image).filter(Image.id == image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    get_image_or_404(db, image_id)
 
     query = db.query(BboxAnnotation).filter(BboxAnnotation.image_id == image_id)
     if prompt_type is not None:
@@ -104,10 +99,7 @@ def create_point_annotation(
     db: Session = Depends(get_db),
 ) -> PointAnnotation:
     """Create a point annotation for an image."""
-    # Verify image exists
-    image = db.query(Image).filter(Image.id == annotation.image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    image = get_image_or_404(db, annotation.image_id)
 
     # Validate point coordinates are within image bounds
     if annotation.point_x < 0 or annotation.point_y < 0:
@@ -139,10 +131,7 @@ def get_point_annotations(
     db: Session = Depends(get_db),
 ) -> dict:
     """Get all point annotations for an image."""
-    # Verify image exists
-    image = db.query(Image).filter(Image.id == image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    get_image_or_404(db, image_id)
 
     annotations = (
         db.query(PointAnnotation)
