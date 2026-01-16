@@ -76,9 +76,7 @@ def create_job(
     # Build filenames list and filter snapshots for images to process
     id_to_filename = {img_id: filename for img_id, filename, _ in valid_images}
     filenames_to_process = [id_to_filename[img_id] for img_id in image_ids_to_process]
-    snapshots_to_store = {
-        str(img_id): all_snapshots[img_id].model_dump(mode="json") for img_id in image_ids_to_process
-    }
+    snapshots_to_store = {str(img_id): all_snapshots[img_id].model_dump(mode="json") for img_id in image_ids_to_process}
 
     # Create job with snapshots
     job = ProcessingJob(

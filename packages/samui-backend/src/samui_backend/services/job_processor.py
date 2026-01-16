@@ -108,8 +108,7 @@ def _check_image_needs_processing(
     mode: SegmentationMode,
     jobs: list[ProcessingJob],
 ) -> bool:
-    """Check if a single image needs processing given pre-fetched jobs.
-    """
+    """Check if a single image needs processing given pre-fetched jobs."""
     current_ids = _get_snapshot_annotation_ids(snapshot, mode)
 
     # Find most recent job that includes this image
@@ -159,12 +158,7 @@ def filter_images_needing_processing(
         return []
 
     # Fetch all jobs for this mode once
-    jobs = (
-        db.query(ProcessingJob)
-        .filter(ProcessingJob.mode == mode)
-        .order_by(desc(ProcessingJob.created_at))
-        .all()
-    )
+    jobs = db.query(ProcessingJob).filter(ProcessingJob.mode == mode).order_by(desc(ProcessingJob.created_at)).all()
 
     return [
         image_id

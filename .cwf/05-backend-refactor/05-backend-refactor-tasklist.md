@@ -8,25 +8,26 @@
 
 **Tasks:**
 
-- [ ] [P1.1] Create `db/helpers.py` with `get_image_or_404(db, image_id)` function
+- [x] [P1.1] Create `db/helpers.py` with `get_image_or_404(db, image_id)` function
   - Query Image by id, raise HTTPException(404) if not found
   - Return Image instance
-- [ ] [P1.2] Add `get_latest_processing_result(db, image_id, mode)` to `db/helpers.py`
+- [x] [P1.2] Add `get_latest_processing_result(db, image_id, mode)` to `db/helpers.py`
   - Query ProcessingResult filtered by image_id and mode
   - Order by processed_at desc, return first or None
-- [ ] [P1.3] Update `db/__init__.py` to export helpers
-- [ ] [P1.4] Update `routes/images.py` to use `get_image_or_404`
+- [x] [P1.3] Update `db/__init__.py` to export helpers
+- [x] [P1.4] Update `routes/images.py` to use `get_image_or_404`
   - Replace inline queries in `get_image`, `update_image`, `get_image_data`, `delete_image`, `get_image_history`
-- [ ] [P1.5] Update `routes/annotations.py` to use `get_image_or_404`
-- [ ] [P1.6] Update `routes/processing.py` to use helpers
-- [ ] [P1.7] Update `routes/jobs.py` to use `get_image_or_404`
-- [ ] [P1.8] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P1.5] Update `routes/annotations.py` to use `get_image_or_404`
+- [x] [P1.6] Update `routes/processing.py` to use helpers
+- [x] [P1.7] Update `routes/jobs.py` to use `get_image_or_404`
+  - Note: jobs.py batch validation pattern intentionally not changed (filters missing images rather than 404)
+- [x] [P1.8] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
-- [ ] Code quality: Run `uvx ruff format packages/samui-backend/`
-- [ ] Review: Verify all image existence checks now use helper, no duplicated query patterns remain
+- [x] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
+- [x] Code quality: Run `uvx ruff format packages/samui-backend/`
+- [x] Review: Verify all image existence checks now use helper, no duplicated query patterns remain
 
 **Phase 1 Complete:** Database helpers extracted and integrated. Routes use shared query functions.
 

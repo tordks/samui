@@ -9,6 +9,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
+from samui_backend.db.helpers import get_image_or_404
 from samui_backend.db.models import Image, ProcessingResult
 from samui_backend.dependencies import get_storage_service
 from samui_backend.enums import SegmentationMode
@@ -90,10 +91,7 @@ def get_all_history(
 @router.get("/{image_id}", response_model=ImageResponse)
 def get_image(image_id: uuid.UUID, db: Session = Depends(get_db)) -> Image:
     """Get a single image by ID."""
-    image = db.query(Image).filter(Image.id == image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
-    return image
+    return get_image_or_404(db, image_id)
 
 
 @router.patch("/{image_id}", response_model=ImageResponse)
@@ -103,9 +101,7 @@ def update_image(
     db: Session = Depends(get_db),
 ) -> Image:
     """Update image metadata."""
-    image = db.query(Image).filter(Image.id == image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    image = get_image_or_404(db, image_id)
 
     if "text_prompt" in update.model_fields_set:
         image.text_prompt = update.text_prompt
@@ -122,9 +118,7 @@ def get_image_data(
     storage: StorageService = Depends(get_storage_service),
 ) -> bytes:
     """Get the actual image data."""
-    image = db.query(Image).filter(Image.id == image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    image = get_image_or_404(db, image_id)
 
     try:
         data = storage.get_image(image.blob_path)
@@ -145,9 +139,7 @@ def delete_image(
     storage: StorageService = Depends(get_storage_service),
 ) -> None:
     """Delete an image and its metadata."""
-    image = db.query(Image).filter(Image.id == image_id).first()
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    image = get_image_or_404(db, image_id)
 
     # Delete from storage
     try:
@@ -179,9 +171,7 @@ def get_image_history(
     Raises:
         HTTPException: If image not found.
     """
-    image = db.get(Image, image_id)
-    if not image:
-        raise HTTPException(status_code=404, detail="Image not found")
+    get_image_or_404(db, image_id)
 
     results = (
         db.query(ProcessingResult)
