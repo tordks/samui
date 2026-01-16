@@ -72,23 +72,23 @@
 
 **Tasks:**
 
-- [ ] [P3.1] Create `services/mode_processors.py` with functions extracted from `job_processor.py`:
+- [x] [P3.1] Create `services/mode_processors.py` with functions extracted from `job_processor.py`:
   - `_save_mask_to_storage(storage, masks, result_id)` (lines 176-198)
   - `_save_coco_to_storage(storage, image, bboxes, masks, result_id, points)` (lines 201-222)
   - `process_inside_box(storage, sam3, image, pil_image, bbox_annotations, result)` (lines 225-247)
   - `process_find_all(storage, sam3, image, pil_image, bbox_annotations, text_prompt, result)` (lines 250-298)
   - `process_point(storage, sam3, image, pil_image, point_annotations, result)` (lines 301-333)
-- [ ] [P3.2] Update `services/__init__.py` to export mode_processors functions
-- [ ] [P3.3] Update `job_processor.py` to import from `mode_processors`
+- [x] [P3.2] Update `services/__init__.py` to export mode_processors functions
+- [x] [P3.3] Update `job_processor.py` to import from `mode_processors`
   - Remove duplicated function definitions
   - Update `process_single_image` to use imported functions
-- [ ] [P3.4] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P3.4] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
-- [ ] Code quality: Run `uvx ruff format packages/samui-backend/`
-- [ ] Review: Verify job_processor.py is now ~300 lines focused on job orchestration
+- [x] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
+- [x] Code quality: Run `uvx ruff format packages/samui-backend/`
+- [x] Review: Verify job_processor.py is now ~300 lines focused on job orchestration
 
 **Phase 3 Complete:** Mode processors extracted. job_processor.py at target size (~300 lines).
 
