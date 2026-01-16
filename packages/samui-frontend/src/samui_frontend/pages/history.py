@@ -77,15 +77,18 @@ def _history_label(result: dict) -> str | None:
     """Generate label for history gallery item showing discoveries and prompt info."""
     parts = []
 
+    # For POINT mode, show point count if available
+    point_count = result.get("point_count")
+    if point_count is not None:
+        parts.append(f"{point_count} points")
+
     bbox_count = len(result.get("bboxes") or [])
     if bbox_count > 0:
         parts.append(f"{bbox_count} discoveries")
 
     text_prompt = result.get("text_prompt_used")
     if text_prompt:
-        prompt_display = (
-            f'"{text_prompt[:30]}..."' if len(text_prompt) > 30 else f'"{text_prompt}"'
-        )
+        prompt_display = f'"{text_prompt[:30]}..."' if len(text_prompt) > 30 else f'"{text_prompt}"'
         parts.append(f"Prompt: {prompt_display}")
 
     return " | ".join(parts) if parts else None
@@ -124,8 +127,8 @@ def render() -> None:
     st.header("Processing Results")
     st.caption("View all processing results")
 
-    # Mode toggle at the top
-    current_mode = render_mode_toggle(key="history_mode_radio")
+    # Mode toggle at the top (include POINT mode)
+    current_mode = render_mode_toggle(key="history_mode_radio", include_point=True)
     st.divider()
 
     # Fetch and display all processing history

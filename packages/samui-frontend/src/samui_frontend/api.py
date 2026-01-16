@@ -343,3 +343,72 @@ def fetch_result_mask(result_id: str) -> bytes | None:
     except httpx.HTTPError:
         pass
     return None
+
+
+def create_point_annotation(image_id: str, x: int, y: int, is_positive: bool) -> dict | None:
+    """Create a point annotation for an image.
+
+    Args:
+        image_id: The image UUID.
+        x: X coordinate of the point.
+        y: Y coordinate of the point.
+        is_positive: True for positive (foreground), False for negative (background).
+
+    Returns:
+        The created annotation dict on success, None on failure.
+    """
+    try:
+        response = httpx.post(
+            f"{API_URL}/point-annotations",
+            json={
+                "image_id": image_id,
+                "point_x": x,
+                "point_y": y,
+                "is_positive": is_positive,
+            },
+            timeout=API_TIMEOUT_READ,
+        )
+        response.raise_for_status()
+        return response.json()
+    except httpx.HTTPError:
+        return None
+
+
+def fetch_point_annotations(image_id: str) -> list[dict]:
+    """Fetch all point annotations for an image.
+
+    Args:
+        image_id: The image UUID.
+
+    Returns:
+        List of point annotation dicts.
+    """
+    try:
+        response = httpx.get(
+            f"{API_URL}/point-annotations/{image_id}",
+            timeout=API_TIMEOUT_READ,
+        )
+        response.raise_for_status()
+        return response.json().get("annotations", [])
+    except httpx.HTTPError:
+        return []
+
+
+def delete_point_annotation(annotation_id: str) -> bool:
+    """Delete a point annotation.
+
+    Args:
+        annotation_id: The point annotation UUID.
+
+    Returns:
+        True on success, False on failure.
+    """
+    try:
+        response = httpx.delete(
+            f"{API_URL}/point-annotations/{annotation_id}",
+            timeout=API_TIMEOUT_READ,
+        )
+        response.raise_for_status()
+        return True
+    except httpx.HTTPError:
+        return False

@@ -5,11 +5,15 @@ import streamlit as st
 from samui_frontend.models import SegmentationMode
 
 
-def render_mode_toggle(key: str = "mode_radio") -> SegmentationMode:
+def render_mode_toggle(
+    key: str = "mode_radio",
+    include_point: bool = False,
+) -> SegmentationMode:
     """Render segmentation mode toggle and return selected mode.
 
     Args:
         key: Unique key for the radio button widget.
+        include_point: If True, include POINT mode in the options.
 
     Returns:
         The currently selected SegmentationMode.
@@ -23,16 +27,26 @@ def render_mode_toggle(key: str = "mode_radio") -> SegmentationMode:
         SegmentationMode.FIND_ALL: "Find all instances matching text prompt and/or exemplars",
     }
 
+    if include_point:
+        mode_options[SegmentationMode.POINT] = "Point"
+        mode_descriptions[SegmentationMode.POINT] = "Segment using positive and negative point prompts"
+
+    # Map enum to index
+    mode_list = list(mode_options.keys())
+    current_mode = st.session_state.segmentation_mode
+    current_index = mode_list.index(current_mode) if current_mode in mode_list else 0
+
     selected_label = st.radio(
         "Segmentation Mode",
         options=list(mode_options.values()),
-        index=0 if st.session_state.segmentation_mode == SegmentationMode.INSIDE_BOX else 1,
+        index=current_index,
         horizontal=True,
         key=key,
     )
 
     # Map label back to enum
-    mode = SegmentationMode.INSIDE_BOX if selected_label == "Inside Box" else SegmentationMode.FIND_ALL
+    label_to_mode = {v: k for k, v in mode_options.items()}
+    mode = label_to_mode[selected_label]
 
     # Update session state if mode changed
     if mode != st.session_state.segmentation_mode:

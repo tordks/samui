@@ -48,8 +48,8 @@ class ImageList(BaseModel):
     total: int
 
 
-class AnnotationCreate(BaseModel):
-    """Schema for creating an annotation."""
+class BboxAnnotationCreate(BaseModel):
+    """Schema for creating a bounding box annotation."""
 
     image_id: uuid.UUID
     bbox_x: int
@@ -59,8 +59,8 @@ class AnnotationCreate(BaseModel):
     prompt_type: PromptType = PromptType.SEGMENT
 
 
-class AnnotationResponse(BaseModel):
-    """Schema for annotation response."""
+class BboxAnnotationResponse(BaseModel):
+    """Schema for bounding box annotation response."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -74,10 +74,39 @@ class AnnotationResponse(BaseModel):
     created_at: datetime
 
 
-class AnnotationList(BaseModel):
-    """Schema for list of annotations response."""
+class BboxAnnotationList(BaseModel):
+    """Schema for list of bounding box annotations response."""
 
-    annotations: list[AnnotationResponse]
+    annotations: list[BboxAnnotationResponse]
+    total: int
+
+
+class PointAnnotationCreate(BaseModel):
+    """Schema for creating a point annotation."""
+
+    image_id: uuid.UUID
+    point_x: int
+    point_y: int
+    is_positive: bool = True
+
+
+class PointAnnotationResponse(BaseModel):
+    """Schema for point annotation response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    image_id: uuid.UUID
+    point_x: int
+    point_y: int
+    is_positive: bool
+    created_at: datetime
+
+
+class PointAnnotationList(BaseModel):
+    """Schema for list of point annotations response."""
+
+    annotations: list[PointAnnotationResponse]
     total: int
 
 
@@ -108,9 +137,35 @@ class ProcessingResultResponse(BaseModel):
     mask_blob_path: str
     coco_json_blob_path: str
     processed_at: datetime
-    annotation_ids: list[str] | None = None
-    text_prompt_used: str | None = None
     bboxes: list[dict] | None = None
+
+
+class BboxAnnotationSnapshot(BaseModel):
+    """Snapshot of a bbox annotation for job processing."""
+
+    id: uuid.UUID
+    bbox_x: int
+    bbox_y: int
+    bbox_width: int
+    bbox_height: int
+    prompt_type: PromptType
+
+
+class PointAnnotationSnapshot(BaseModel):
+    """Snapshot of a point annotation for job processing."""
+
+    id: uuid.UUID
+    point_x: int
+    point_y: int
+    is_positive: bool
+
+
+class AnnotationsSnapshot(BaseModel):
+    """Snapshot of an image's annotations at job submission time."""
+
+    text_prompt: str | None = None
+    bbox_annotations: list[BboxAnnotationSnapshot] = []
+    point_annotations: list[PointAnnotationSnapshot] = []
 
 
 class ProcessingJobCreate(BaseModel):
@@ -174,6 +229,5 @@ class ProcessingHistoryResponse(BaseModel):
     image_id: uuid.UUID
     mode: SegmentationMode
     processed_at: datetime
-    text_prompt_used: str | None = None
     bboxes: list[dict] | None = None
     mask_blob_path: str

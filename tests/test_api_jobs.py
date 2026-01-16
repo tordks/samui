@@ -6,10 +6,9 @@ from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 from PIL import Image as PILImage
-from sqlalchemy.orm import Session
-
-from samui_backend.db.models import Annotation, Image, ProcessingJob, ProcessingResult
+from samui_backend.db.models import BboxAnnotation, Image, ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, PromptType, SegmentationMode
+from sqlalchemy.orm import Session
 
 
 def create_test_image_bytes() -> bytes:
@@ -38,9 +37,9 @@ def create_test_annotation(
     db: Session,
     image_id: uuid.UUID,
     prompt_type: PromptType = PromptType.SEGMENT,
-) -> Annotation:
+) -> BboxAnnotation:
     """Create a test annotation in the database."""
-    annotation = Annotation(
+    annotation = BboxAnnotation(
         image_id=image_id,
         bbox_x=10,
         bbox_y=10,
@@ -59,6 +58,7 @@ def create_test_job(
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
     status: JobStatus = JobStatus.QUEUED,
     filenames: list[str] | None = None,
+    annotations_snapshot: dict | None = None,
 ) -> ProcessingJob:
     """Create a test processing job."""
     job = ProcessingJob(
@@ -66,6 +66,7 @@ def create_test_job(
         status=status,
         image_ids=[str(img_id) for img_id in image_ids],
         image_filenames=filenames or [f"test_{i}.png" for i in range(len(image_ids))],
+        annotations_snapshot=annotations_snapshot,
     )
     db.add(job)
     db.commit()
@@ -77,8 +78,6 @@ def create_test_result(
     job_id: uuid.UUID,
     image_id: uuid.UUID,
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
-    annotation_ids: list[str] | None = None,
-    text_prompt_used: str | None = None,
 ) -> ProcessingResult:
     """Create a test processing result."""
     result = ProcessingResult(
@@ -87,8 +86,6 @@ def create_test_result(
         mode=mode,
         mask_blob_path=f"masks/{uuid.uuid4()}.png",
         coco_json_blob_path=f"coco/{uuid.uuid4()}.json",
-        annotation_ids=annotation_ids,
-        text_prompt_used=text_prompt_used,
     )
     db.add(result)
     db.commit()
@@ -99,9 +96,7 @@ class TestCreateJob:
     """Tests for POST /jobs endpoint."""
 
     @patch("samui_backend.routes.jobs.start_job_if_none_running")
-    def test_create_job_success(
-        self, mock_start: MagicMock, client: TestClient, db_session: Session
-    ) -> None:
+    def test_create_job_success(self, mock_start: MagicMock, client: TestClient, db_session: Session) -> None:
         """Test creating a job with valid images."""
         image = create_test_image(db_session)
         create_test_annotation(db_session, image.id)
@@ -123,15 +118,29 @@ class TestCreateJob:
         mock_start.assert_called_once()
 
     @patch("samui_backend.routes.jobs.start_job_if_none_running")
-    def test_create_job_with_force_all(
-        self, mock_start: MagicMock, client: TestClient, db_session: Session
-    ) -> None:
+    def test_create_job_with_force_all(self, mock_start: MagicMock, client: TestClient, db_session: Session) -> None:
         """Test creating a job with force_all=True includes all images."""
         # Create image with annotation and existing result
         image = create_test_image(db_session)
         ann = create_test_annotation(db_session, image.id)
-        job = create_test_job(db_session, [image.id])
-        create_test_result(db_session, job.id, image.id, annotation_ids=[str(ann.id)])
+        snapshot = {
+            str(image.id): {
+                "text_prompt": None,
+                "bbox_annotations": [
+                    {
+                        "id": str(ann.id),
+                        "bbox_x": ann.bbox_x,
+                        "bbox_y": ann.bbox_y,
+                        "bbox_width": ann.bbox_width,
+                        "bbox_height": ann.bbox_height,
+                        "prompt_type": ann.prompt_type.value,
+                    }
+                ],
+                "point_annotations": [],
+            }
+        }
+        job = create_test_job(db_session, [image.id], annotations_snapshot=snapshot)
+        create_test_result(db_session, job.id, image.id)
 
         # Without force_all, no images need processing
         response = client.post(
@@ -188,9 +197,7 @@ class TestCreateJob:
         assert "No images need processing" in response.json()["detail"]
 
     @patch("samui_backend.routes.jobs.start_job_if_none_running")
-    def test_create_job_find_all_mode(
-        self, mock_start: MagicMock, client: TestClient, db_session: Session
-    ) -> None:
+    def test_create_job_find_all_mode(self, mock_start: MagicMock, client: TestClient, db_session: Session) -> None:
         """Test creating a find-all mode job."""
         image = create_test_image(db_session)
         image.text_prompt = "find all cats"

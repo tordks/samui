@@ -392,3 +392,171 @@ class TestSAM3ServiceFindAll:
         assert result.masks.shape == (0, 100, 100)
         assert len(result.scores) == 0
         assert len(result.bboxes) == 0
+
+
+class TestSAM3ServicePointMode:
+    """Tests for SAM3Service point mode (process_image_points)."""
+
+    def test_process_image_points_raises_when_model_not_loaded(self) -> None:
+        """Test that process_image_points raises error when model not loaded."""
+        from samui_backend.services.sam3_inference import SAM3Service
+
+        service = SAM3Service()
+        image = Image.new("RGB", (100, 100), color="red")
+        points = [(50, 50)]
+        labels = [1]
+
+        with pytest.raises(RuntimeError, match="not loaded"):
+            service.process_image_points(image, points, labels)
+
+    def test_process_image_points_raises_when_no_points(self) -> None:
+        """Test that process_image_points raises error when no points provided."""
+        from samui_backend.services.sam3_inference import SAM3Service
+
+        service = SAM3Service()
+        service._model = MagicMock()
+        service._processor = MagicMock()
+
+        image = Image.new("RGB", (100, 100), color="red")
+
+        with pytest.raises(ValueError, match="No point annotations"):
+            service.process_image_points(image, [], [])
+
+    def test_process_image_points_raises_when_length_mismatch(self) -> None:
+        """Test that process_image_points raises error when points and labels have different lengths."""
+        from samui_backend.services.sam3_inference import SAM3Service
+
+        service = SAM3Service()
+        service._model = MagicMock()
+        service._processor = MagicMock()
+
+        image = Image.new("RGB", (100, 100), color="red")
+        points = [(50, 50), (30, 30)]
+        labels = [1]  # Only one label for two points
+
+        with pytest.raises(ValueError, match="same length"):
+            service.process_image_points(image, points, labels)
+
+    @patch("sam3.build_sam3_image_model")
+    @patch("sam3.model.sam3_image_processor.Sam3Processor")
+    def test_process_image_points_calls_predict_inst_with_correct_args(
+        self, mock_processor_cls: MagicMock, mock_build_model: MagicMock
+    ) -> None:
+        """Test that process_image_points calls predict_inst with correct point arguments."""
+        from samui_backend.services.sam3_inference import SAM3Service
+
+        # Setup mock model
+        mock_model = MagicMock()
+        mock_masks = np.zeros((1, 1, 100, 100), dtype=np.float32)
+        mock_model.predict_inst.return_value = (mock_masks, np.array([0.95]), None)
+        mock_build_model.return_value = mock_model
+
+        # Setup mock processor
+        mock_processor = MagicMock()
+        mock_processor.set_image.return_value = {"state": "test"}
+        mock_processor_cls.return_value = mock_processor
+
+        service = SAM3Service()
+        service.load_model()
+
+        image = Image.new("RGB", (100, 100), color="red")
+        points = [(50, 50), (30, 70)]
+        labels = [1, 0]  # positive and negative
+
+        result = service.process_image_points(image, points, labels)
+
+        # Verify predict_inst was called with point coords and labels
+        mock_model.predict_inst.assert_called_once()
+        call_args = mock_model.predict_inst.call_args
+
+        point_coords_arg = call_args.kwargs.get("point_coords")
+        point_labels_arg = call_args.kwargs.get("point_labels")
+        box_arg = call_args.kwargs.get("box")
+
+        # Verify point coordinates
+        expected_coords = np.array([[50, 50], [30, 70]], dtype=np.float32)
+        np.testing.assert_array_equal(point_coords_arg, expected_coords)
+
+        # Verify point labels
+        expected_labels = np.array([1, 0], dtype=np.int32)
+        np.testing.assert_array_equal(point_labels_arg, expected_labels)
+
+        # Verify no bounding box
+        assert box_arg is None
+
+        # Result should have correct shape (1, H, W)
+        assert result.shape == (1, 100, 100)
+
+    @patch("sam3.build_sam3_image_model")
+    @patch("sam3.model.sam3_image_processor.Sam3Processor")
+    def test_process_image_points_with_positive_points_only(
+        self, mock_processor_cls: MagicMock, mock_build_model: MagicMock
+    ) -> None:
+        """Test process_image_points with only positive points."""
+        from samui_backend.services.sam3_inference import SAM3Service
+
+        # Setup mock model
+        mock_model = MagicMock()
+        mock_masks = np.ones((1, 100, 100), dtype=np.float32)
+        mock_model.predict_inst.return_value = (mock_masks, np.array([0.9]), None)
+        mock_build_model.return_value = mock_model
+
+        # Setup mock processor
+        mock_processor = MagicMock()
+        mock_processor.set_image.return_value = {"state": "test"}
+        mock_processor_cls.return_value = mock_processor
+
+        service = SAM3Service()
+        service.load_model()
+
+        image = Image.new("RGB", (100, 100), color="red")
+        points = [(25, 25), (75, 75), (50, 50)]
+        labels = [1, 1, 1]  # All positive
+
+        result = service.process_image_points(image, points, labels)
+
+        # Verify all labels are positive
+        call_args = mock_model.predict_inst.call_args
+        point_labels_arg = call_args.kwargs.get("point_labels")
+        assert np.all(point_labels_arg == 1)
+
+        # Result should be binary mask
+        assert result.dtype == np.uint8
+        assert set(np.unique(result)).issubset({0, 255})
+
+    @patch("sam3.build_sam3_image_model")
+    @patch("sam3.model.sam3_image_processor.Sam3Processor")
+    def test_process_image_points_with_mixed_points(
+        self, mock_processor_cls: MagicMock, mock_build_model: MagicMock
+    ) -> None:
+        """Test process_image_points with mixed positive and negative points."""
+        from samui_backend.services.sam3_inference import SAM3Service
+
+        # Setup mock model
+        mock_model = MagicMock()
+        mock_masks = np.ones((1, 100, 100), dtype=np.float32)
+        mock_model.predict_inst.return_value = (mock_masks, np.array([0.85]), None)
+        mock_build_model.return_value = mock_model
+
+        # Setup mock processor
+        mock_processor = MagicMock()
+        mock_processor.set_image.return_value = {"state": "test"}
+        mock_processor_cls.return_value = mock_processor
+
+        service = SAM3Service()
+        service.load_model()
+
+        image = Image.new("RGB", (100, 100), color="red")
+        points = [(50, 50), (10, 10), (90, 90)]
+        labels = [1, 0, 1]  # positive, negative, positive
+
+        result = service.process_image_points(image, points, labels)
+
+        # Verify labels are correctly passed
+        call_args = mock_model.predict_inst.call_args
+        point_labels_arg = call_args.kwargs.get("point_labels")
+        expected_labels = np.array([1, 0, 1], dtype=np.int32)
+        np.testing.assert_array_equal(point_labels_arg, expected_labels)
+
+        # Result should be single mask
+        assert result.shape[0] == 1

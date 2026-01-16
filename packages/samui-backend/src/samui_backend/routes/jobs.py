@@ -12,11 +12,13 @@ from samui_backend.db.models import Image, ProcessingJob, ProcessingResult
 from samui_backend.dependencies import get_storage_service
 from samui_backend.enums import JobStatus
 from samui_backend.schemas import (
+    AnnotationsSnapshot,
     ProcessingJobCreate,
     ProcessingJobResponse,
 )
 from samui_backend.services import (
-    get_images_needing_processing,
+    build_annotations_snapshot,
+    filter_images_needing_processing,
     start_job_if_none_running,
 )
 from samui_backend.services.storage import StorageService
@@ -46,38 +48,46 @@ def create_job(
     Raises:
         HTTPException: If no valid images to process or image_ids don't exist.
     """
-    # Validate image_ids exist and collect filenames
-    valid_images: list[tuple[uuid.UUID, str]] = []
+    # Validate image_ids exist and build snapshots
+    valid_images: list[tuple[uuid.UUID, str, Image]] = []
     for image_id in request.image_ids:
         image = db.get(Image, image_id)
         if image:
-            valid_images.append((image_id, image.filename))
+            valid_images.append((image_id, image.filename, image))
 
     if not valid_images:
         raise HTTPException(status_code=400, detail="No valid image IDs provided")
 
-    valid_image_ids = [img_id for img_id, _ in valid_images]
+    # Build snapshots for all valid images first (avoids race condition)
+    all_snapshots: dict[uuid.UUID, AnnotationsSnapshot] = {}
+    for image_id, _, image in valid_images:
+        snapshot = build_annotations_snapshot(db, image, request.mode)
+        all_snapshots[image_id] = snapshot
 
-    # Filter by needs_processing if not force_all
+    # Filter by needs_processing using snapshot data
     if request.force_all:
-        image_ids_to_process = valid_image_ids
+        image_ids_to_process = [img_id for img_id, _, _ in valid_images]
     else:
-        image_ids_to_process = get_images_needing_processing(db, valid_image_ids, request.mode)
+        image_ids_to_process = filter_images_needing_processing(db, all_snapshots, request.mode)
 
     if not image_ids_to_process:
         raise HTTPException(status_code=400, detail="No images need processing")
 
-    # Build filenames list for images to process (preserve order)
-    id_to_filename = dict(valid_images)
+    # Build filenames list and filter snapshots for images to process
+    id_to_filename = {img_id: filename for img_id, filename, _ in valid_images}
     filenames_to_process = [id_to_filename[img_id] for img_id in image_ids_to_process]
+    snapshots_to_store = {
+        str(img_id): all_snapshots[img_id].model_dump(mode="json") for img_id in image_ids_to_process
+    }
 
-    # Create job
+    # Create job with snapshots
     job = ProcessingJob(
         mode=request.mode,
         status=JobStatus.QUEUED,
         image_ids=[str(img_id) for img_id in image_ids_to_process],
         image_filenames=filenames_to_process,
         current_index=0,
+        annotations_snapshot=snapshots_to_store,
     )
     db.add(job)
     db.commit()

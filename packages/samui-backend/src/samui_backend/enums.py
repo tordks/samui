@@ -25,3 +25,4 @@ class SegmentationMode(StrEnum):
 
     INSIDE_BOX = "inside_box"
     FIND_ALL = "find_all"
+    POINT = "point"

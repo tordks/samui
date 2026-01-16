@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -17,7 +17,8 @@ __all__ = [
     "PromptType",
     "SegmentationMode",
     "Image",
-    "Annotation",
+    "BboxAnnotation",
+    "PointAnnotation",
     "ProcessingResult",
     "ProcessingJob",
 ]
@@ -38,18 +39,21 @@ class Image(Base):
     )
     text_prompt: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
-    annotations: Mapped[list["Annotation"]] = relationship(
-        "Annotation", back_populates="image", cascade="all, delete-orphan"
+    bbox_annotations: Mapped[list["BboxAnnotation"]] = relationship(
+        "BboxAnnotation", back_populates="image", cascade="all, delete-orphan"
+    )
+    point_annotations: Mapped[list["PointAnnotation"]] = relationship(
+        "PointAnnotation", back_populates="image", cascade="all, delete-orphan"
     )
     processing_results: Mapped[list["ProcessingResult"]] = relationship(
         "ProcessingResult", back_populates="image", cascade="all, delete-orphan"
     )
 
 
-class Annotation(Base):
+class BboxAnnotation(Base):
     """Bounding box annotation model."""
 
-    __tablename__ = "annotations"
+    __tablename__ = "bbox_annotations"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     image_id: Mapped[uuid.UUID] = mapped_column(
@@ -64,7 +68,26 @@ class Annotation(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
-    image: Mapped["Image"] = relationship("Image", back_populates="annotations")
+    image: Mapped["Image"] = relationship("Image", back_populates="bbox_annotations")
+
+
+class PointAnnotation(Base):
+    """Point annotation model for point-based segmentation."""
+
+    __tablename__ = "point_annotations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    image_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("images.id", ondelete="CASCADE"), nullable=False
+    )
+    point_x: Mapped[int] = mapped_column(Integer, nullable=False)
+    point_y: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_positive: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
+    image: Mapped["Image"] = relationship("Image", back_populates="point_annotations")
 
 
 class ProcessingJob(Base):
@@ -86,6 +109,7 @@ class ProcessingJob(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    annotations_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # dict[str, AnnotationsSnapshot]
 
     results: Mapped[list["ProcessingResult"]] = relationship("ProcessingResult", back_populates="job")
 
@@ -114,8 +138,6 @@ class ProcessingResult(Base):
     processed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
-    annotation_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)  # list of UUID strings
-    text_prompt_used: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     bboxes: Mapped[list | None] = mapped_column(JSON, nullable=True)  # list of {x, y, width, height}
 
     job: Mapped["ProcessingJob"] = relationship("ProcessingJob", back_populates="results")

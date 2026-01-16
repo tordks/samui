@@ -8,10 +8,8 @@ import io
 import uuid
 from unittest.mock import MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
-
 from samui_backend.db.models import ProcessingJob, ProcessingResult
 from samui_backend.enums import JobStatus, SegmentationMode
 
@@ -60,9 +58,7 @@ class TestMaskEndpoint:
         assert response.status_code == 404
         assert "inside_box" in response.json()["detail"].lower()
 
-    def test_get_mask_with_mode_parameter_not_found(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_get_mask_with_mode_parameter_not_found(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test getting mask with explicit mode parameter."""
         image_id = upload_test_image(client)
 
@@ -71,9 +67,7 @@ class TestMaskEndpoint:
         assert response.status_code == 404
         assert "find_all" in response.json()["detail"].lower()
 
-    def test_get_mask_success(
-        self, client: TestClient, mock_storage: MagicMock, db_session
-    ) -> None:
+    def test_get_mask_success(self, client: TestClient, mock_storage: MagicMock, db_session) -> None:
         """Test getting mask when processing result exists."""
         # Create an image
         image_id = upload_test_image(client)
@@ -108,9 +102,7 @@ class TestMaskEndpoint:
         assert response.status_code == 200
         assert response.headers["content-type"] == "image/png"
 
-    def test_get_mask_returns_latest_result(
-        self, client: TestClient, mock_storage: MagicMock, db_session
-    ) -> None:
+    def test_get_mask_returns_latest_result(self, client: TestClient, mock_storage: MagicMock, db_session) -> None:
         """Test that mask endpoint returns the latest result."""
         # Create an image
         image_id = upload_test_image(client)
@@ -179,9 +171,7 @@ class TestExportEndpoint:
         assert response.status_code == 404
         assert "inside_box" in response.json()["detail"].lower()
 
-    def test_export_with_mode_parameter_not_found(
-        self, client: TestClient, mock_storage: MagicMock
-    ) -> None:
+    def test_export_with_mode_parameter_not_found(self, client: TestClient, mock_storage: MagicMock) -> None:
         """Test export with explicit mode parameter."""
         image_id = upload_test_image(client)
 
@@ -198,9 +188,7 @@ class TestExportEndpoint:
         assert response.status_code == 404
         assert "image not found" in response.json()["detail"].lower()
 
-    def test_export_success(
-        self, client: TestClient, mock_storage: MagicMock, db_session
-    ) -> None:
+    def test_export_success(self, client: TestClient, mock_storage: MagicMock, db_session) -> None:
         """Test export when processing result exists."""
         import json
 
