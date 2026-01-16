@@ -133,24 +133,24 @@
 
 **Tasks:**
 
-- [ ] [P5.1] Update `ProcessingHistoryResponse` in `schemas.py`
+- [x] [P5.1] Update `ProcessingHistoryResponse` in `schemas.py`
   - Add `text_prompt_used: str | None = None` field
   - Add `point_count: int | None = None` field
-- [ ] [P5.2] Update `get_image_history` in `routes/images.py`
+- [x] [P5.2] Update `get_image_history` in `routes/images.py`
   - Join ProcessingResult with ProcessingJob via job_id
   - Extract text_prompt and point_count from job.annotations_snapshot
   - Return enriched response objects
-- [ ] [P5.3] Update `get_all_history` in `routes/images.py` with same join logic
-- [ ] [P5.4] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
-- [ ] [P5.5] Verify frontend history page displays text_prompt and point_count labels
+- [x] [P5.3] Update `get_all_history` in `routes/images.py` with same join logic
+- [x] [P5.4] Run tests: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
+- [x] [P5.5] Verify frontend history page displays text_prompt and point_count labels
 
 **Checkpoints:**
 
-- [ ] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
-- [ ] Code quality: Run `uvx ruff format packages/samui-backend/`
-- [ ] Review: Verify API returns text_prompt_used and point_count, frontend displays them
+- [x] Code quality: Run `uvx ruff check --fix packages/samui-backend/`
+- [x] Code quality: Run `uvx ruff format packages/samui-backend/`
+- [x] Review: Verify API returns text_prompt_used and point_count, frontend displays them
 
-**Phase 5 Complete:** History endpoint fixed. Frontend displays full result metadata.
+**Phase 5 Complete:** History endpoint fixed. Frontend displays full result metadata. ✅
 
 ---
 
@@ -158,9 +158,9 @@
 
 After all phases complete:
 
-- [ ] Run full test suite: `cd packages/samui-backend && uv run pytest ../../tests/ -v`
-- [ ] Run vulture to check for dead code: `uvx vulture packages/samui-backend/src/`
-- [ ] Verify file sizes meet targets:
-  - `job_processor.py` ~300 lines
-  - `sam3_inference.py` ~280 lines
-- [ ] Manual smoke test: upload image, add annotations, run processing, check history
+- [x] Run full test suite: `cd packages/samui-backend && uv run pytest ../../tests/ -v` (123 passed)
+- [x] Run vulture to check for dead code: `uvx vulture packages/samui-backend/src/` (all findings are false positives - FastAPI routes, Pydantic models)
+- [x] Verify file sizes meet targets:
+  - `job_processor.py` 220 lines (target ~300) ✓
+  - `sam3_inference.py` 267 lines (target ~280) ✓
+- [x] Manual smoke test: upload image, add annotations, run processing, check history

@@ -192,3 +192,5 @@ class ProcessingHistoryResponse(BaseModel):
     processed_at: datetime
     bboxes: list[dict] | None = None
     mask_blob_path: str
+    text_prompt_used: str | None = None
+    point_count: int | None = None

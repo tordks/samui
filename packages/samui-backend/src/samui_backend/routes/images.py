@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from samui_backend.db.database import get_db
 from samui_backend.db.helpers import get_image_or_404
-from samui_backend.db.models import Image, ProcessingResult
+from samui_backend.db.models import Image, ProcessingJob, ProcessingResult
 from samui_backend.dependencies import get_storage_service
 from samui_backend.enums import SegmentationMode
 from samui_backend.schemas import ImageList, ImageResponse, ImageUpdate, ProcessingHistoryResponse
@@ -69,7 +69,7 @@ def list_images(db: Session = Depends(get_db)) -> dict:
 def get_all_history(
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
     db: Session = Depends(get_db),
-) -> list[ProcessingResult]:
+) -> list[ProcessingHistoryResponse]:
     """Get all processing history across all images.
 
     Args:
@@ -80,12 +80,14 @@ def get_all_history(
         List of ProcessingHistoryResponse, newest first.
     """
     results = (
-        db.query(ProcessingResult)
+        db.query(ProcessingResult, ProcessingJob)
+        .join(ProcessingJob, ProcessingResult.job_id == ProcessingJob.id)
         .filter(ProcessingResult.mode == mode)
         .order_by(desc(ProcessingResult.processed_at))
         .all()
     )
-    return results
+
+    return [_build_history_response(result, job, str(result.image_id)) for result, job in results]
 
 
 @router.get("/{image_id}", response_model=ImageResponse)
@@ -157,7 +159,7 @@ def get_image_history(
     image_id: uuid.UUID,
     mode: SegmentationMode = SegmentationMode.INSIDE_BOX,
     db: Session = Depends(get_db),
-) -> list[ProcessingResult]:
+) -> list[ProcessingHistoryResponse]:
     """Get processing history for an image.
 
     Args:
@@ -174,9 +176,48 @@ def get_image_history(
     get_image_or_404(db, image_id)
 
     results = (
-        db.query(ProcessingResult)
+        db.query(ProcessingResult, ProcessingJob)
+        .join(ProcessingJob, ProcessingResult.job_id == ProcessingJob.id)
         .filter(ProcessingResult.image_id == image_id, ProcessingResult.mode == mode)
         .order_by(desc(ProcessingResult.processed_at))
         .all()
     )
-    return results
+
+    return [_build_history_response(result, job, str(image_id)) for result, job in results]
+
+
+def _build_history_response(
+    result: ProcessingResult,
+    job: ProcessingJob,
+    image_id_str: str,
+) -> ProcessingHistoryResponse:
+    """Build a ProcessingHistoryResponse with job snapshot data.
+
+    Args:
+        result: The processing result.
+        job: The processing job containing the annotations snapshot.
+        image_id_str: String representation of the image ID for snapshot lookup.
+
+    Returns:
+        ProcessingHistoryResponse with text_prompt_used and point_count populated.
+    """
+    text_prompt_used = None
+    point_count = None
+
+    if job.annotations_snapshot and image_id_str in job.annotations_snapshot:
+        snapshot = job.annotations_snapshot[image_id_str]
+        text_prompt_used = snapshot.get("text_prompt")
+        point_annotations = snapshot.get("point_annotations", [])
+        point_count = len(point_annotations) if point_annotations else None
+
+    return ProcessingHistoryResponse(
+        id=result.id,
+        job_id=result.job_id,
+        image_id=result.image_id,
+        mode=result.mode,
+        processed_at=result.processed_at,
+        bboxes=result.bboxes,
+        mask_blob_path=result.mask_blob_path,
+        text_prompt_used=text_prompt_used,
+        point_count=point_count,
+    )
