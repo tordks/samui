@@ -123,8 +123,8 @@ Monorepo with isolated packages:
   - `schemas.py` - Pydantic request/response models
 
 - `packages/samui-frontend/` - Streamlit UI
-  - `pages/` - Upload, annotation, processing pages
-  - `components/` - Reusable UI components
+  - `pages/` - Upload, annotation (bbox and point), processing pages
+  - `components/` - Reusable UI components (annotators, gallery, controls)
 
 - `tests/` - Integration tests at project root (run from backend package)
 
@@ -137,7 +137,7 @@ Monorepo with isolated packages:
 
 ## Segmentation Modes
 
-The application supports two segmentation modes, each with distinct annotation types and processing methods:
+The application supports three segmentation modes, each with distinct annotation types and processing methods:
 
 ### Inside Box Mode (default)
 - User draws bounding boxes (prompt_type=SEGMENT)
@@ -150,11 +150,18 @@ The application supports two segmentation modes, each with distinct annotation t
 - SAM3 discovers all matching instances using `process_image_find_all()` with batched API
 - Creates new annotations (source=MODEL) for discovered objects
 
+### Point Mode
+- User clicks on images to place positive (foreground) and negative (background) points
+- Uses `PointAnnotation` model with x, y coordinates and is_positive flag
+- SAM3 inference using `predict_inst()` with point coordinates/labels
+- One mask per image from combined point prompts
+
 **Key data model fields:**
-- `Annotation.prompt_type` - SEGMENT, POSITIVE_EXEMPLAR, or NEGATIVE_EXEMPLAR
-- `Annotation.source` - USER or MODEL (model-generated from find-all)
+- `BboxAnnotation.prompt_type` - SEGMENT, POSITIVE_EXEMPLAR, or NEGATIVE_EXEMPLAR
+- `BboxAnnotation.source` - USER or MODEL (model-generated from find-all)
+- `PointAnnotation` - x, y, is_positive for point mode
 - `Image.text_prompt` - Text description for find-all mode
-- `ProcessingResult.mode` - INSIDE_BOX or FIND_ALL (unique per image+mode)
+- `ProcessingResult.mode` - INSIDE_BOX, FIND_ALL, or POINT (unique per image+mode)
 
 **Frontend session state:**
 - Both annotation and processing pages share `segmentation_mode` in session state

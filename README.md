@@ -1,13 +1,14 @@
 # SAM3 WebUI
 
-A web-based interface for SAM3 image segmentation. Upload images, draw bounding box prompts, run inference, and export results in COCO format.
+A web-based interface for SAM3 image segmentation. Upload images, provide prompts (bounding boxes or points), run inference, and export results in COCO format.
 
 ## Features
 
-- **Two Segmentation Modes**:
+- **Three Segmentation Modes**:
   - **Inside Box**: Segment objects within user-drawn bounding boxes
   - **Find All**: Discover all instances matching a text prompt or exemplar boxes
-- **Annotation Tools**: Draw bounding boxes with support for positive/negative exemplars
+  - **Point**: Click to place positive/negative points for precise segmentation control
+- **Annotation Tools**: Draw bounding boxes or place points with support for positive/negative prompts
 - **Batch Processing**: Process multiple images in a single batch
 - **COCO Export**: Download segmentation results in standard COCO format
 
@@ -68,11 +69,10 @@ The default mode. Draw bounding boxes around objects you want to segment. SAM3 w
 
 **Workflow:**
 1. Upload images
-2. Select "Inside Box" mode on the annotation page
+2. Select "Inside Box" mode on the Annotation page
 3. Draw bounding boxes around objects of interest
-4. Go to processing page, ensure "Inside Box" mode is selected
-5. Click "Process" to run inference
-6. Download results in COCO format
+4. Click "Process" to run inference
+5. View results on History page and download in COCO format
 
 ### Find All Mode
 
@@ -80,17 +80,29 @@ Discover all instances of objects matching a text description or visual exemplar
 
 **Workflow:**
 1. Upload images
-2. Select "Find All" mode on the annotation page
+2. Select "Find All" mode on the Annotation page
 3. Enter a text prompt (e.g., "red apples") and/or draw exemplar boxes:
    - **Positive exemplars (+)**: Examples of what to find
    - **Negative exemplars (-)**: Examples of what to exclude
-4. Go to processing page, select "Find All" mode
-5. Click "Process" to run inference
-6. Download results in COCO format
+4. Click "Process" to run inference
+5. View results on History page and download in COCO format
+
+### Point Mode
+
+Click directly on objects to indicate what to segment. Offers precise control for interactive segmentation.
+
+**Workflow:**
+1. Upload images
+2. Go to the Point Annotation page
+3. Click on the image to place points:
+   - **Positive points (green)**: Indicate foreground (what to segment)
+   - **Negative points (red)**: Indicate background (what to exclude)
+4. Click "Process" to run inference
+5. View results on History page and download in COCO format
 
 **Notes:**
 - Each mode maintains separate annotations and processing results
-- You can process the same image with both modes independently
+- You can process the same image with all three modes independently
 
 ## Architecture
 
@@ -100,9 +112,9 @@ Monorepo with isolated packages: `packages/samui-backend` (FastAPI) and `package
 ┌─────────────────────────────────────────────────────────────────┐
 │                           Frontend                              │
 │                       (Streamlit :8501)                         │
-│  ┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────┐ ┌─────────┐      │
-│  │ Upload │ │Annotation│ │Processing│ │ Jobs │ │ History │      │
-│  └────────┘ └──────────┘ └──────────┘ └──────┘ └─────────┘      │
+│  ┌────────┐ ┌──────────┐ ┌───────┐ ┌─────────┐ ┌──────┐         │
+│  │ Upload │ │Annotation│ │ Point │ │ History │ │ Jobs │         │
+│  └────────┘ └──────────┘ └───────┘ └─────────┘ └──────┘         │
 └────────────────────────────────┬────────────────────────────────┘
                                  │ HTTP/REST
                                  ▼
@@ -137,9 +149,11 @@ Monorepo with isolated packages: `packages/samui-backend` (FastAPI) and `package
 │                       │           │ ┌───────────────────┐ │
 │  • Original images    │           │ │      images       │ │
 │  • Mask PNGs          │           │ ├───────────────────┤ │
-│  • COCO JSON exports  │           │ │   annotations     │ │
+│  • COCO JSON exports  │           │ │ bbox_annotations  │ │
 │                       │           │ ├───────────────────┤ │
-└───────────────────────┘           │ │  processing_jobs  │ │
+└───────────────────────┘           │ │ point_annotations │ │
+                                    │ ├───────────────────┤ │
+                                    │ │  processing_jobs  │ │
                                     │ ├───────────────────┤ │
                                     │ │processing_results │ │
                                     │ └───────────────────┘ │
@@ -150,18 +164,18 @@ Monorepo with isolated packages: `packages/samui-backend` (FastAPI) and `package
 
 | Component | Purpose |
 |-----------|---------|
-| **Frontend** | Streamlit UI for image upload, bounding box annotation, triggering processing, and viewing results |
+| **Frontend** | Streamlit UI for image upload, annotation (bounding boxes and points), triggering processing, and viewing results |
 | **Backend** | FastAPI REST API that orchestrates all operations and hosts the SAM3 model |
 | **Storage Service** | Abstracts blob storage operations (upload/download images and masks) |
 | **SAM3 Inference** | Wraps SAM3 model with lazy loading - loads on first inference, unloads to free GPU memory |
 | **Job Processor** | Runs inference jobs in background tasks with queue support (one job runs at a time) |
-| **PostgreSQL** | Stores metadata: image records, annotations, job status, and processing results |
+| **PostgreSQL** | Stores metadata: image records, bbox/point annotations, job status, and processing results |
 | **Blob Storage** | Stores binary data: original images, generated masks, and COCO JSON exports |
 
 ### Data Flow
 
 1. **Upload**: Frontend → `/images` → Storage Service saves to blob → DB stores metadata
-2. **Annotate**: Frontend → `/annotations` → DB stores bounding boxes
+2. **Annotate**: Frontend → `/annotations` → DB stores bounding boxes or points
 3. **Process**: Frontend → `/jobs` → JobProcessor queues work → SAM3 runs inference → masks saved to blob → results saved to DB
 4. **Export**: Frontend → `/results/{id}/mask` or `/process/export/{id}` → retrieves from blob storage
 
@@ -177,25 +191,3 @@ Environment variables (see `.env.example`):
 | `SAM3_MODEL_NAME` | SAM3 model to use | `sam3_hiera_large` |
 | `HF_TOKEN` | Hugging Face token for model download | (required) |
 | `API_URL` | Backend URL for frontend | `http://localhost:8000` |
-
-## Development
-
-### Code Quality
-
-```bash
-# Lint
-uvx ruff check packages/
-
-# Format
-uvx ruff format packages/
-```
-
-### Adding Dependencies
-
-```bash
-# Backend
-cd packages/samui-backend && uv add <package>
-
-# Frontend
-cd packages/samui-frontend && uv add <package>
-```
